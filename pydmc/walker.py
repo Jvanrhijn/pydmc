@@ -22,3 +22,6 @@ class Walker:
     @configuration.setter
     def configuration(self, conf):
         self._configuration = conf
+
+    def __repr__(self):
+        return f"W: {self.weight}, C: {self.configuration}"
