@@ -1,3 +1,4 @@
+import copy
 import math
 import numpy as np
 
@@ -16,6 +17,9 @@ class DMC:
         self._ar = ar
         self._guiding_wf = guiding_wf
         self._reference_energy = reference_energy
+        self._energy_cumulative = [reference_energy]
+        self._variance = [0.0]
+        self._error = [0.0]
 
     def run_dmc(self, time_step, num_blocks, steps_per_block, neq=1):
         # TODO: blocking, energy stabilization, variance estimation
@@ -31,23 +35,27 @@ class DMC:
                 total_weight = 0
 
                 for walker in self._walkers:
-                    xold = walker.configuration
+                    xold = copy.deepcopy(walker.configuration)
                     # compute "old" local energy
                     local_energy_old = self._hamiltonian(self._guiding_wf, xold) / self._guiding_wf(xold)
 
-                    # update ensemble energy and weight
-                    ensemble_energy += local_energy_old
-                    total_weight += walker.weight
-
                     # perform accept/reject step
-                    xnew = self._ar.move_state(self._guiding_wf, xold)
+                    acceptance_prob, xnew = self._ar.move_state(self._guiding_wf, xold, time_step)
+
+                    # update ensemble energy and weight
+                    ensemble_energy += walker.weight*local_energy_old
+                    total_weight += walker.weight
 
                     # compute "new" local energy
                     local_energy_new = self._hamiltonian(self._guiding_wf, xnew) / self._guiding_wf(xnew)
 
                     # update walker weight and configuration
-                    walker.weight *= math.exp(-time_step * ((local_energy_old + local_energy_new)/2.0 - self._reference_energy))
+                    # TODO: fix the weight modification, as now the weights -> 0 as t -> inf
+                    s = self._reference_energy - local_energy_old
+                    sprime = self._reference_energy - local_energy_new
+                    walker.weight *= math.exp((0.5*acceptance_prob*(s + sprime) + (1- acceptance_prob)*s)*time_step)
                     walker.configuration = xnew
+
 
                 # update energy estimate
                 ensemble_energy /= total_weight
@@ -57,12 +65,23 @@ class DMC:
             
             block_average_energy = np.mean(block_energies)
 
-
             # skip equilibration blocks
             if b >= neq:
+                energy_prev = self._energy_cumulative[-1]
+                self._energy_cumulative.append(self._energy_cumulative[-1] + (block_average_energy - self._energy_cumulative[-1]) / (b - neq + 2))
+                energy = block_average_energy
                 energies[b-neq] = block_average_energy
-
-            self._reference_energy = (self._reference_energy + block_average_energy) / 2
+                self._variance.append(self._variance[-1] + ((energy - energy_prev)*(energy - self._energy_cumulative[-1]))/(b - neq + 1))
+                self._error.append(math.sqrt(self._variance[-1] / (b - neq + 1)))
+                self._reference_energy = (self._reference_energy + block_average_energy) / 2
 
         return energies
+
+    @property
+    def energy_estimate(self):
+        return np.array(self._energy_cumulative)
+
+    @property
+    def energy_error(self):
+        return np.array(self._error)
 

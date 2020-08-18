@@ -29,7 +29,6 @@ class SRBrancher(Brancher):
 class SimpleBrancher(Brancher):
 
     def __init__(self, max_copies=50):
-        raise NotImplementedError()
         self._max_copies = max_copies
 
     def perform_branching(self, walkers):
