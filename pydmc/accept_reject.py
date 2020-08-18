@@ -41,3 +41,7 @@ class DiffuseAcceptReject(AcceptReject):
         acceptance = try_num * value_new**2 / (try_den * value_old**2)
 
         return xprop if acceptance > self._rng.uniform() else x
+
+    def move_state(self, wave_function, x):
+        xprop = self._propose(wave_function, x)
+        return self._accept(wave_function, x, xprop)
