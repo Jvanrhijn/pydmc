@@ -1,3 +1,4 @@
+import math
 import copy
 import unittest
 
@@ -45,6 +46,11 @@ def laplacian_fd(fun, x, dx=1e-5):
         dxx[i] = dx
         lapl += (fun(x + dxx) - 2*fun(x) + fun(x - dxx)) / dx**2
     return lapl
+
+
+def velocity_cutoff(v, tau, a=1):
+    vnorm = np.linalg.norm(v)
+    return v * (-1 + math.sqrt(1 + 2*a*vnorm**2*tau)) / (a*vnorm**2*tau)
 
 
 class TestFunctions(unittest.TestCase):

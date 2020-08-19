@@ -3,6 +3,8 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 
+from pydmc.util import velocity_cutoff
+
 
 class AcceptReject(ABC):
 
@@ -21,20 +23,21 @@ class DiffuseAcceptReject(AcceptReject):
         # TODO: allow single-electron moves, ignore for now
         #       since our test case only has 1 particle
         value_old = wave_function(x)
-        drift_old = wave_function.gradient(x) / value_old
+        drift_old = velocity_cutoff(wave_function.gradient(x) / value_old, time_step)
 
         xprop = x + drift_old * time_step + self._rng.normal(size=x.shape, scale=math.sqrt(time_step))
 
         value_new = wave_function(xprop)
-        drift_new = wave_function.gradient(xprop) / value_new
+        drift_new = velocity_cutoff(wave_function.gradient(xprop) / value_new, time_step)
 
         # reject if node is crossed and we're doing FN-DMC
         if self._fixed_node and math.copysign(1, value_old) != math.copysign(1, value_new):
-            return 0, x
+            return False, 0, x
 
         try_num = np.exp(-np.linalg.norm(x - xprop - drift_new*time_step)**2 / (2*time_step))
         try_den = np.exp(-np.linalg.norm(xprop - x - drift_old*time_step)**2 / (2*time_step))
 
         acceptance = min(1, try_num * value_new**2 / (try_den * value_old**2))
+        accepted = acceptance > self._rng.uniform()
 
-        return acceptance, (xprop if acceptance > self._rng.uniform() else x)
+        return accepted, acceptance, (xprop if accepted else x)

@@ -35,9 +35,7 @@ class SimpleBrancher(Brancher):
         extra_walkers = []
         for i, walker in enumerate(walkers):
             if walker.weight > 1:
-                num_copies = int(walker.weight + np.random.uniform()) - 1
-                if num_copies > self._max_copies:
-                    raise ValueError("Too many walker copies have been made")
+                num_copies = min(3, int(walker.weight + np.random.uniform()) - 1)
                 for _ in range(num_copies):
                     extra_walkers.append(copy.deepcopy(walker))
             else:
