@@ -41,3 +41,6 @@ class DiffuseAcceptReject(AcceptReject):
         accepted = acceptance > self._rng.uniform()
 
         return accepted, acceptance, (xprop if accepted else x)
+
+    def reseed(self, seed):
+        self._rng = np.random.default_rng(seed)

@@ -53,6 +53,12 @@ def velocity_cutoff(v, tau, a=1):
     return v * (-1 + math.sqrt(1 + 2*a*vnorm**2*tau)) / (a*vnorm**2*tau)
 
 
+def chunks(l, n):
+    """Yield n number of striped chunks from l."""
+    for i in range(0, n):
+        yield l[i::n]
+
+
 class TestFunctions(unittest.TestCase):
 
     def test_gradient(self):
