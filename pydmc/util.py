@@ -59,6 +59,28 @@ def chunks(l, n):
         yield l[i::n]
 
 
+def bin_samples(samples, bin_size=100):
+    """Bin samples for blocking analysis of data traces"""
+    nsamples = len(samples)
+    blocks = np.array_split(samples, nsamples//bin_size)
+    block_avgs = np.array([np.mean(b) for b in blocks])
+    return block_avgs
+
+
+def block_error(data, block_size):
+    num_blocks = len(data) // block_size
+    blocks = np.array_split(data, num_blocks)
+    bmeans = np.array([np.mean(b) for b in blocks])
+    mean = np.mean(bmeans)
+    meansq = np.mean(bmeans**2)
+    return np.sqrt((meansq - mean**2) / len(blocks))
+
+
+def flatten(l):
+    return [item for sublist in l for item in sublist]
+
+
+
 class TestFunctions(unittest.TestCase):
 
     def test_gradient(self):

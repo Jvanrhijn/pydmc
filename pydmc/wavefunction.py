@@ -31,3 +31,14 @@ class Parametrized(ABC):
     @abstractmethod
     def set_parameters(self, ps):
         pass
+
+
+class GeometryParametrized(ABC):
+
+    @abstractmethod
+    def geometry_parameters(self):
+        pass
+
+    @abstractmethod
+    def deform(self, parameter_change):
+        pass

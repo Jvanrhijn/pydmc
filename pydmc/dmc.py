@@ -14,10 +14,10 @@ from pydmc.util import chunks
 
 class DMC:
 
-    def __init__(self, hamiltonian, walkers, brancher, ar, guiding_wf, reference_energy, seed=1):
+    def __init__(self, hamiltonian, walkers, brancher, ar, guiding_wf, reference_energy, force_accumulator=None, seed=1):
         self._hamiltonian = hamiltonian
         self._walkers = walkers
-        self.brancher = brancher
+        self._brancher = brancher
         self._ar = ar
         self._guiding_wf = guiding_wf
         self._reference_energy = reference_energy
@@ -26,6 +26,7 @@ class DMC:
         self._variance = [0.0]
         self._confs = []
         self._error = [0.0]
+        self.force_accumulator = force_accumulator
 
     def run_dmc(self, time_step, num_blocks, steps_per_block, accumulator=None, neq=1, progress=True):
 
@@ -43,11 +44,21 @@ class DMC:
                 ensemble_energy = 0
                 total_weight = 0
 
-                for walker in self._walkers:
+                for iwalker, walker in enumerate(self._walkers):
                     self._confs.append(walker.configuration)
-                    walker_energy = self._update_walker(walker, time_step)
-                    ensemble_energy += walker_energy
+                    local_energy = self._update_walker(walker, time_step)
+                    ensemble_energy += walker.weight*local_energy
                     total_weight += walker.weight
+
+                    if self.force_accumulator is not None and b >= neq:
+                        self.force_accumulator.accumulate_samples(
+                            iwalker,
+                            walker, 
+                            self._guiding_wf, 
+                            self._hamiltonian, 
+                            self._reference_energy, 
+                            time_step
+                        )
                 
                     if accumulator is not None:
                         accumulator.sample_observables(self._guiding_wf, walker)
@@ -58,7 +69,7 @@ class DMC:
 
                 self._energy_all.append(ensemble_energy)
 
-                self.brancher.perform_branching(self._walkers)
+                self._brancher.perform_branching(self._walkers)
 
 
             # skip equilibration blocks
@@ -89,7 +100,7 @@ class DMC:
         walker.weight *= math.exp((0.5*acceptance_prob*(s + sprime) + (1- acceptance_prob)*s)*time_step)
         walker.configuration = xnew
 
-        return walker.weight * local_energy_new
+        return local_energy_new
 
     @property
     def energy_estimate(self):
