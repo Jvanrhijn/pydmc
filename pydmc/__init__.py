@@ -5,3 +5,4 @@ from pydmc.util import *
 from pydmc.walker import *
 from pydmc.wavefunction import *
 from pydmc.forces import *
+from pydmc.node_warp import *

@@ -97,7 +97,8 @@ class DMC:
         # update walker weight and configuration
         s = self._reference_energy - local_energy_old
         sprime = self._reference_energy - local_energy_new
-        walker.weight *= math.exp((0.5*acceptance_prob*(s + sprime) + (1- acceptance_prob)*s)*time_step)
+        #walker.weight *= math.exp((0.5*acceptance_prob*(s + sprime) + (1- acceptance_prob)*s)*time_step)
+        walker.weight *= math.exp(0.5*(s + sprime)*time_step)
         walker.configuration = xnew
 
         return local_energy_new
