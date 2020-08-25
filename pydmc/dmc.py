@@ -69,6 +69,9 @@ class DMC:
 
                 self._energy_all.append(ensemble_energy)
 
+                if b < neq:
+                    self._reference_energy = 0.5 * (self._reference_energy + ensemble_energy)
+
                 self._brancher.perform_branching(self._walkers)
 
 
@@ -97,8 +100,8 @@ class DMC:
         # update walker weight and configuration
         s = self._reference_energy - local_energy_old
         sprime = self._reference_energy - local_energy_new
-        #walker.weight *= math.exp((0.5*acceptance_prob*(s + sprime) + (1- acceptance_prob)*s)*time_step)
-        walker.weight *= math.exp(0.5*(s + sprime)*time_step)
+        walker.weight *= math.exp((0.5*acceptance_prob*(s + sprime) + (1- acceptance_prob)*s)*time_step)
+        #walker.weight *= math.exp(0.5*(s + sprime)*time_step)
         walker.configuration = xnew
 
         return local_energy_new

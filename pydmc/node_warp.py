@@ -1,4 +1,5 @@
 import numpy as np
+import math
 
 
 def node_warp(x, psival, psigrad, psisec_val, psisec_grad):
@@ -13,10 +14,16 @@ def node_warp(x, psival, psigrad, psisec_val, psisec_grad):
     return x + (d - dprime)*np.sign(psisec_val)*nprime*u, jac
 
 
-def cutoff(d, a=0.1):
+#def cutoff(d, a=0.1):
+#    value = math.e*math.exp(-1/(1 - (d/a)**2)) if d < a else 0.0
+#    deriv = math.e * -2*a**2*d*math.exp(-1/(1 - (d/a)**2))/(a**2 - d**2)**2 if d < a else 0.0
+#    return value, deriv
+
+
+def cutoff(d, a=0.05):
     b = a/5
-    value = 0.5 * (1 + np.tanh((a - d)/b))
-    deriv = -1/(2*b) / np.cosh((a - d)/b)**2
+    value = 0.5 * (1 + math.tanh((a - d)/b)) if d < 4*a else 0.0
+    deriv = -1/(2*b) / math.cosh((a - d)/b)**2 if d < 4*a else 0.0
     #return 0, 0
     return value, deriv
 
