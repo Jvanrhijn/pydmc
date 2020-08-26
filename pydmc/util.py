@@ -74,7 +74,7 @@ def block_error(data, block_size):
     bmeans = np.array([np.mean(b) for b in blocks])
     mean = np.mean(bmeans)
     meansq = np.mean(bmeans**2)
-    return np.sqrt((meansq - mean**2) / len(blocks))
+    return np.sqrt((meansq - mean**2) / (len(blocks) -1 ))
 
 
 def flatten(l):
