@@ -14,7 +14,7 @@ from pydmc.util import chunks, velocity_cutoff
 
 class DMC:
 
-    def __init__(self, hamiltonian, walkers, brancher, ar, guiding_wf, reference_energy, force_accumulator=None, seed=1):
+    def __init__(self, hamiltonian, walkers, brancher, ar, guiding_wf, reference_energy, force_accumulators=None, seed=1):
         self._hamiltonian = hamiltonian
         self._walkers = walkers
         self._brancher = brancher
@@ -26,7 +26,7 @@ class DMC:
         self._variance = [0.0]
         self._confs = []
         self._error = [0.0]
-        self.force_accumulator = force_accumulator
+        self.force_accumulators = force_accumulators
 
     def run_dmc(self, time_step, num_blocks, steps_per_block, accumulator=None, neq=1, progress=True):
 
@@ -50,15 +50,16 @@ class DMC:
                     ensemble_energy += walker.weight*local_energy
                     total_weight += walker.weight
 
-                    if self.force_accumulator is not None and b >= neq:
-                        self.force_accumulator.accumulate_samples(
-                            iwalker,
-                            walker, 
-                            self._guiding_wf, 
-                            self._hamiltonian, 
-                            self._reference_energy, 
-                            time_step
-                        )
+                    if self.force_accumulators is not None and b >= neq:
+                        for fa in self.force_accumulators:
+                            fa.accumulate_samples(
+                                iwalker,
+                                walker, 
+                                self._guiding_wf, 
+                                self._hamiltonian, 
+                                self._reference_energy, 
+                                time_step
+                            )
                 
                     if accumulator is not None:
                         accumulator.sample_observables(self._guiding_wf, walker)
@@ -104,7 +105,7 @@ class DMC:
         vprime = self._guiding_wf.gradient(xnew)/self._guiding_wf(xnew)
         sprime = (self._reference_energy - local_energy_new) \
              * np.linalg.norm(velocity_cutoff(vprime, time_step))/np.linalg.norm(vprime)
-        #walker.weight *= math.exp((0.5*acceptance_prob*(s + sprime) + (1- acceptance_prob)*s)*time_step)
+
         walker.weight *= math.exp(0.5*(s + sprime)*time_step)
         walker.configuration = xnew
 

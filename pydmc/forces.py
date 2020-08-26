@@ -21,9 +21,12 @@ class ForcesDriftDifGfunc:
         self._weights[iwalker].append(walker.weight)
         x = walker.configuration
         xprev = walker.previous_configuration
+
         psival = psi(x)
         psigrad = psi.gradient(x)
 
+        psival_prev = psi(xprev)
+        psigrad_prev = psi.gradient(xprev)
 
         incr = np.insert(self._increments, 0, 0)
 
@@ -38,11 +41,13 @@ class ForcesDriftDifGfunc:
 
             psisec_val = psi_sec(x)
             psisec_grad = psi_sec.gradient(x)
+            psisec_val_prev = psi_sec(xprev)
+            psisec_grad_prev = psi_sec.gradient(xprev)
 
             if self._warp:
                 xwarp, jac = node_warp(x, psival, psigrad, psisec_val, psisec_grad)
                 self._jacs[geo][iwalker].append(jac)
-                xprev_warp = node_warp(xprev, psival, psigrad, psisec_val, psisec_grad)[0]
+                xprev_warp = node_warp(xprev, psival_prev, psigrad_prev, psisec_val_prev, psisec_grad_prev)[0]
             else:
                 xwarp, jac = x, 1
                 self._jacs[geo][iwalker].append(jac)
@@ -130,6 +135,9 @@ class ForcesVD:
         psival = psi(x)
         psigrad = psi.gradient(x)
 
+        psival_prev = psi(xprev)
+        psigrad_prev = psi.gradient(xprev)
+
         incr = np.insert(self._increments, 0, 0)
 
         for geo in range(len(incr)):
@@ -143,11 +151,13 @@ class ForcesVD:
 
             psisec_val = psi_sec(x)
             psisec_grad = psi_sec.gradient(x)
+            psisec_val_prev = psi_sec(xprev)
+            psisec_grad_prev = psi_sec.gradient(xprev)
 
             if self._warp:
                 xwarp, jac = node_warp(x, psival, psigrad, psisec_val, psisec_grad)
                 self._jacs[geo][iwalker].append(jac)
-                xprev_warp = node_warp(xprev, psival, psigrad, psisec_val, psisec_grad)[0]
+                xprev_warp = node_warp(xprev, psival_prev, psigrad_prev, psisec_val_prev, psisec_grad_prev)[0]
             else:
                 xwarp, jac = x, 1
                 self._jacs[geo][iwalker].append(jac)
@@ -156,6 +166,7 @@ class ForcesVD:
             self._local_es[geo][iwalker].append(hamiltonian(psi_sec, xwarp) / psi_sec(xwarp))
             local_e_prev = self._local_es[geo][iwalker][-2] if len(self._local_es[geo][iwalker]) > 1 else eref
 
+            # compute branching factor with the cutoff vbar / v from Umrigar
             vwarp = psi_sec.gradient(xprev_warp)/psi_sec(xprev_warp)
             vwarp_prime = psi_sec.gradient(xwarp)/psi_sec(xwarp)
             s = (eref - local_e_prev) \
@@ -166,80 +177,6 @@ class ForcesVD:
             self._ss[geo][iwalker].append(time_step * 0.5 * (s + sprime))
 
             self._psis[geo][iwalker].append(psisec_val)
-
-            #self._ss[geo][iwalker].append(time_step * (eref - 0.5 * (self._local_es[geo][iwalker][-1] + local_e_prev)))
-
-#    def compute_forces(self, steps_per_block):
-#        weights = flatten(self._weights)
-#        force = np.zeros((len(self._increments), len(weights)))
-#        energy = np.average(flatten(self._local_es[0]), weights=weights)
-#
-#        for i, da in enumerate(self._increments):
-#            elocal_deriv = (np.array(flatten(self._local_es[i+1])) - np.array(flatten(self._local_es[0])))/da
-#            sderiv = (np.array(flatten(self._ss[i+1])) - flatten(np.array(self._ss[0])))/da
-#
-#            psi_logderiv = (np.log(np.abs(np.array(flatten(self._psis[i+1])))) - np.log(np.abs(np.array(flatten(self._psis[0])))))/da
-#
-#            jprimary = np.array(flatten(self._jacs[0]))
-#            jderiv = (np.log(np.abs(np.array(flatten(self._jacs[i+1])))) - np.log(np.abs(jprimary)))/da
-#
-#            # compute partial sums of t and s derivatives
-#            sderiv_partial_sums = np.zeros(len(sderiv))
-#
-#            for n in range(steps_per_block, len(sderiv)):
-#                sderiv_partial_sums[n-steps_per_block] = np.sum(sderiv[n-steps_per_block:n])
-#
-#            # Compute Hellman-Feynman and Pulay force terms
-#            fhf = -elocal_deriv
-#            fpulay = -(np.array(flatten(self._local_es[0]) - energy) * (2*psi_logderiv + sderiv_partial_sums + jderiv))
-#
-#            force[i, :] = fhf + fpulay
-#
-#        return force, weights
-
-    #def compute_forces(self, steps_per_block):
-    #    #force = np.zeros(((len(self._weights), len)
-    #    energy = np.average(flatten(self._local_es[0])[steps_per_block:], 
-    #                        weights=flatten(self._weights)[steps_per_block:])
-
-    #    force = np.zeros((len(self._weights), len(self._increments), len(self._weights[0])-steps_per_block))
-    #    # take derivatives per walker, average at the end
-    #    weights_tot = 0
-    #    for iw in range(len(self._weights)):
-    #        for i, da in enumerate(self._increments):
-    #            elocal_deriv = (np.array(self._local_es[i+1][iw]) - np.array(self._local_es[0][iw]))/da
-    #            sderiv = (np.array(self._ss[i+1][iw]) - np.array(self._ss[0][iw]))/da
-
-    #            jprimary = np.array(self._jacs[0][iw])
-    #            jderiv = (np.log(np.abs(np.array(self._jacs[i+1][iw]))) - np.log(np.abs(jprimary)))/da
-    #        
-    #            psis_prim = np.array(self._psis[0][iw])
-    #            psis_sec = np.array(self._psis[i+1][iw])
-    #            psi_logderiv = (np.log(np.abs(psis_sec)) - np.log(np.abs(psis_prim)))/da
-
-    #            # compute partial sums of t and s derivatives
-    #            sderiv_partial_sums = np.zeros(len(sderiv)-steps_per_block)
-
-    #            for n in range(steps_per_block, len(sderiv)):
-    #                sderiv_partial_sums[n-steps_per_block] = np.sum(sderiv[n-steps_per_block:n])
-
-    #            # Compute Hellman-Feynman and Pulay force terms
-    #            fhf = -elocal_deriv[steps_per_block:]
-    #            fpulay = -(np.array(self._local_es[0][iw][steps_per_block:] - energy) \
-    #                * (2*psi_logderiv[steps_per_block:] + sderiv_partial_sums + jderiv[steps_per_block:]))
-
-    #            force[iw, i, :] = fhf + fpulay
-    #        weights_tot += np.array(self._weights[iw])[steps_per_block:]
-
-    #    flout = np.zeros(force.shape[1:])
-    #    fave = np.zeros(len(self._increments))
-    #    w = np.array(self._weights)
-
-    #    for i in range(len(self._increments)):
-    #        flout[i] = np.average(force[:, i, :], weights=w[:, steps_per_block:], axis=0)
-    #        fave[i] = np.average(force[:, i, :], weights=w[:, steps_per_block:])
-
-    #    return flout, fave
 
     def compute_forces(self, steps_per_block, nconf):
         #force = np.zeros(((len(self._weights), len)
