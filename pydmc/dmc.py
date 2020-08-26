@@ -9,7 +9,7 @@ from pydmc.accept_reject import *
 from pydmc.branching import *
 from pydmc.walker import *
 from pydmc.wavefunction import *
-from pydmc.util import chunks
+from pydmc.util import chunks, velocity_cutoff
 
 
 class DMC:
@@ -98,10 +98,14 @@ class DMC:
         local_energy_new = self._hamiltonian(self._guiding_wf, xnew) / wf_value_new
 
         # update walker weight and configuration
-        s = self._reference_energy - local_energy_old
-        sprime = self._reference_energy - local_energy_new
-        walker.weight *= math.exp((0.5*acceptance_prob*(s + sprime) + (1- acceptance_prob)*s)*time_step)
-        #walker.weight *= math.exp(0.5*(s + sprime)*time_step)
+        v = self._guiding_wf.gradient(xold)/self._guiding_wf(xold)
+        s = (self._reference_energy - local_energy_old) \
+            * np.linalg.norm(velocity_cutoff(v, time_step))/np.linalg.norm(v)
+        vprime = self._guiding_wf.gradient(xnew)/self._guiding_wf(xnew)
+        sprime = (self._reference_energy - local_energy_new) \
+             * np.linalg.norm(velocity_cutoff(vprime, time_step))/np.linalg.norm(vprime)
+        #walker.weight *= math.exp((0.5*acceptance_prob*(s + sprime) + (1- acceptance_prob)*s)*time_step)
+        walker.weight *= math.exp(0.5*(s + sprime)*time_step)
         walker.configuration = xnew
 
         return local_energy_new

@@ -49,9 +49,8 @@ def laplacian_fd(fun, x, dx=1e-5):
 
 
 def velocity_cutoff(v, tau, a=1):
-    #vnorm = np.linalg.norm(v)
-    #return v * (-1 + math.sqrt(1 + 2*a*vnorm**2*tau)) / (a*vnorm**2*tau)
-    return v
+    vnorm = np.linalg.norm(v)
+    return v * (-1 + math.sqrt(1 + 2*a*vnorm**2*tau)) / (a*vnorm**2*tau)
 
 
 def chunks(l, n):

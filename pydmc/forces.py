@@ -52,7 +52,14 @@ class ForcesDriftDifGfunc:
             self._psis[geo][iwalker].append(psisec_val)
 
             local_e_prev = self._local_es[geo][iwalker][-2] if len(self._local_es[geo][iwalker]) > 1 else eref
-            self._ss[geo][iwalker].append(time_step * (eref - 0.5 * (self._local_es[geo][iwalker][-1] + local_e_prev)))
+            vwarp = psi_sec.gradient(xprev_warp)/psi_sec(xprev_warp)
+            vwarp_prime = psi_sec.gradient(xwarp)/psi_sec(xwarp)
+            s = (eref - local_e_prev) \
+                * np.linalg.norm(velocity_cutoff(vwarp, time_step))/np.linalg.norm(vwarp)
+            sprime = (eref - self._local_es[geo][iwalker][-1]) \
+                * np.linalg.norm(velocity_cutoff(vwarp_prime, time_step))/np.linalg.norm(vwarp_prime)
+
+            self._ss[geo][iwalker].append(time_step * 0.5 * (s + sprime))
 
             drift = velocity_cutoff(psi_sec.gradient(xprev_warp) / psi_sec(xprev_warp), time_step)
             self._ts[geo][iwalker].append(-np.linalg.norm(xwarp - xprev_warp - drift*time_step)**2 / (2*time_step))
@@ -118,6 +125,7 @@ class ForcesVD:
     def accumulate_samples(self, iwalker, walker, psi, hamiltonian, eref, time_step):
         self._weights[iwalker].append(walker.weight)
         x = walker.configuration
+        xprev = walker.previous_configuration
 
         psival = psi(x)
         psigrad = psi.gradient(x)
@@ -139,9 +147,20 @@ class ForcesVD:
             if self._warp:
                 xwarp, jac = node_warp(x, psival, psigrad, psisec_val, psisec_grad)
                 self._jacs[geo][iwalker].append(jac)
+                xprev_warp = node_warp(xprev, psival, psigrad, psisec_val, psisec_grad)[0]
             else:
                 xwarp, jac = x, 1
                 self._jacs[geo][iwalker].append(jac)
+                xprev_warp = xprev
+
+            vwarp = psi_sec.gradient(xprev_warp)/psi_sec(xprev_warp)
+            vwarp_prime = psi_sec.gradient(xwarp)/psi_sec(xwarp)
+            s = (eref - local_e_prev) \
+                * np.linalg.norm(velocity_cutoff(vwarp, time_step))/np.linalg.norm(vwarp)
+            sprime = (eref - self._local_es[geo][iwalker][-1]) \
+                * np.linalg.norm(velocity_cutoff(vwarp_prime, time_step))/np.linalg.norm(vwarp_prime)
+
+            self._ss[geo][iwalker].append(time_step * 0.5 * (s + sprime))
 
             self._local_es[geo][iwalker].append(hamiltonian(psi_sec, xwarp) / psi_sec(xwarp))
             self._psis[geo][iwalker].append(psisec_val)

@@ -7,6 +7,7 @@ class Walker:
         self._configuration = configuration
         self._weight = weight
         self._configuration_prev = None
+        self._branching_factor = None
 
     @property
     def weight(self):
@@ -28,6 +29,14 @@ class Walker:
     @property
     def previous_configuration(self):
         return self._configuration_prev
+
+    @property
+    def branching_factor(self):
+        return self._branching_factor
+
+    @branching_factor.setter
+    def branching_factor(self, bf):
+        self._branching_factor = bf
 
     def __repr__(self):
         return f"W: {self.weight}, C: {self.configuration}"
