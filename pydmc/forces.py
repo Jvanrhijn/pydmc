@@ -153,6 +153,9 @@ class ForcesVD:
                 self._jacs[geo][iwalker].append(jac)
                 xprev_warp = xprev
 
+            self._local_es[geo][iwalker].append(hamiltonian(psi_sec, xwarp) / psi_sec(xwarp))
+            local_e_prev = self._local_es[geo][iwalker][-2] if len(self._local_es[geo][iwalker]) > 1 else eref
+
             vwarp = psi_sec.gradient(xprev_warp)/psi_sec(xprev_warp)
             vwarp_prime = psi_sec.gradient(xwarp)/psi_sec(xwarp)
             s = (eref - local_e_prev) \
@@ -162,11 +165,9 @@ class ForcesVD:
 
             self._ss[geo][iwalker].append(time_step * 0.5 * (s + sprime))
 
-            self._local_es[geo][iwalker].append(hamiltonian(psi_sec, xwarp) / psi_sec(xwarp))
             self._psis[geo][iwalker].append(psisec_val)
 
-            local_e_prev = self._local_es[geo][iwalker][-2] if len(self._local_es[geo][iwalker]) > 1 else eref
-            self._ss[geo][iwalker].append(time_step * (eref - 0.5 * (self._local_es[geo][iwalker][-1] + local_e_prev)))
+            #self._ss[geo][iwalker].append(time_step * (eref - 0.5 * (self._local_es[geo][iwalker][-1] + local_e_prev)))
 
 #    def compute_forces(self, steps_per_block):
 #        weights = flatten(self._weights)
