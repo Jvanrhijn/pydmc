@@ -74,14 +74,15 @@ class ForcesDriftDifGfunc:
 
     def compute_forces(self, steps_per_block, nconf):
         #force = np.zeros(((len(self._weights), len)
-        energy = np.average(flatten(self._local_es[0])[steps_per_block:], 
-                            weights=flatten(self._weights)[steps_per_block:])
 
         force = np.zeros((len(self._increments), len(self._weights), len(self._weights[0])))
         elocal = np.array(self._local_es)
         ts = np.array(self._ts)
         ss = np.array(self._ss)
         jacs = np.array(self._jacs)
+        w = np.array(self._weights)[:, steps_per_block:nconf]
+
+        energy = np.average(elocal[0, :, steps_per_block:nconf], weights=w)
 
         for i, da in enumerate(self._increments):
             elocal_deriv = (elocal[i+1] - elocal[0])/da
@@ -93,21 +94,20 @@ class ForcesDriftDifGfunc:
             # compute partial sums of t and s derivatives
             sderiv_partial_sums = np.zeros(sderiv.shape)
             tderiv_partial_sums = np.zeros(sderiv.shape)
+            jderiv_partial_sums = np.zeros(jderiv.shape)
 
             for n in range(steps_per_block, len(sderiv)):
                 sderiv_partial_sums[:, n] = np.sum(sderiv[:, n-steps_per_block:n], axis=1)
                 tderiv_partial_sums[:, n] = np.sum(tderiv[:, n-steps_per_block:n], axis=1)
-
+                jderiv_partial_sums[:, n] = np.sum(jderiv[:, n-steps_per_block:n], axis=1)
 
             # Compute Hellman-Feynman and Pulay force terms
-            # TODO: align properly
             fhf = -elocal_deriv 
             fpulay = -(elocal[0] - energy) \
-                * (tderiv_partial_sums + sderiv_partial_sums + jderiv) # + psi_logderiv[:-steps_per_block]))
+                * (tderiv_partial_sums + sderiv_partial_sums + jderiv_partial_sums)
 
             force[i, :, :] = fhf + fpulay
 
-        w = np.array(self._weights)[:, steps_per_block:nconf]
         flout = np.zeros((len(self._increments), w.shape[1]))
         fave = np.zeros(len(self._increments))
 

@@ -24,7 +24,6 @@ def cutoff(d, a=0.05):
     b = a/5
     value = 0.5 * (1 + math.tanh((a - d)/b)) if d < 4*a else 0.0
     deriv = -1/(2*b) / math.cosh((a - d)/b)**2 if d < 4*a else 0.0
-    #return 0, 0
     return value, deriv
 
 
