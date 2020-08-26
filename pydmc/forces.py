@@ -67,7 +67,10 @@ class ForcesDriftDifGfunc:
             self._ss[geo][iwalker].append(time_step * 0.5 * (s + sprime))
 
             drift = velocity_cutoff(psi_sec.gradient(xprev_warp) / psi_sec(xprev_warp), time_step)
-            self._ts[geo][iwalker].append(-np.linalg.norm(xwarp - xprev_warp - drift*time_step)**2 / (2*time_step))
+            if np.all(x == xprev):
+                self._ts[geo][iwalker].append(0)
+            else:
+                self._ts[geo][iwalker].append(-np.linalg.norm(xwarp - xprev_warp - drift*time_step)**2 / (2*time_step))
 
     def compute_forces(self, steps_per_block, nconf):
         #force = np.zeros(((len(self._weights), len)
