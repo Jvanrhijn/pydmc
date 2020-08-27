@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def gradient_fd(fun, x, dx=1e-5):
+def gradient_fd(fun, x, dx=1e-3):
     """
     Compute the gradient of `fun` using finite differences, evaluated at `x`.
     Equal increments in all directions are assumed.
@@ -28,7 +28,7 @@ def gradient_fd(fun, x, dx=1e-5):
     return grad
 
 
-def laplacian_fd(fun, x, dx=1e-5):
+def laplacian_fd(fun, x, dx=1e-3):
     """
     Compute the Laplacian of `fun` using finite differences, evaluated at `x`.
 
