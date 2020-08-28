@@ -14,6 +14,29 @@ def node_warp(x, psival, psigrad, psisec_val, psisec_grad):
     return x + (d - dprime)*np.sign(psisec_val)*nprime*u, jac
 
 
+def node_warp_fd(x, psi, psi_sec, dx=1e-7):
+    warp = lambda x: _warp(x, psi, psi_sec)
+    jacobian = np.zeros((len(x), len(x)))
+    xbar = warp(x)
+    for i in range(len(x)):
+        for j in range(len(x)):
+            dxx = np.zeros(len(x))
+            dxx[j] = dx
+            deriv = (warp(x + dxx)[i] - xbar[i]) / dx
+            jacobian[i, j] = deriv
+    return xbar, np.linalg.det(jacobian)
+
+
+def _warp(x, psi, psi_sec):
+    psival = psi(x); psigrad = psi.gradient(x)
+    psiprimeval = psi_sec(x); psiprimegrad = psi_sec.gradient(x)
+    d = abs(psival)/np.linalg.norm(psigrad)
+    dprime = abs(psiprimeval)/np.linalg.norm(psiprimegrad)
+    nprime = psiprimegrad/np.linalg.norm(psiprimegrad)
+    return x + (d - dprime)*np.sign(psiprimeval)*nprime*cutoff(d)[0]
+
+
+
 #def cutoff(d, a=0.2):
 #    value = math.e*math.exp(-1/(1 - (d/a)**2)) if d < a else 0.0
 #    deriv = math.e * -2*a**2*d*math.exp(-1/(1 - (d/a)**2))/(a**2 - d**2)**2 if d < a else 0.0

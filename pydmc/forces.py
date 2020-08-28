@@ -48,12 +48,14 @@ class ForcesDriftDifGfunc:
 
             if self._warp:
                 xwarp, jac = node_warp(x, psival, psigrad, psisec_val, psisec_grad)
+                #xwarp, jac = node_warp_fd(x, psi, psi_sec)
+                xprev_warp, jac_prev = node_warp(xprev, psival_prev, psigrad_prev, psisec_val_prev, psisec_grad_prev)
+                #xprev_warp, jac_prev = node_warp_fd(xprev, psi, psi_sec)
                 self._jacs[geo][iwalker].append(jac)
-                xprev_warp = node_warp(xprev, psival_prev, psigrad_prev, psisec_val_prev, psisec_grad_prev)[0]
             else:
                 xwarp, jac = x, 1
+                xprev_warp, jac_prev = xprev, 1
                 self._jacs[geo][iwalker].append(jac)
-                xprev_warp = xprev
 
             self._local_es[geo][iwalker].append(hamiltonian(psi_sec, xwarp) / psi_sec(xwarp))
             self._psis[geo][iwalker].append(psisec_val)
@@ -69,11 +71,25 @@ class ForcesDriftDifGfunc:
 
             self._ss[geo][iwalker].append(time_step * 0.5 * (s + sprime))
 
-            drift = velocity_cutoff(psi_sec.gradient(xprev_warp) / psi_sec(xprev_warp), time_step)
+            #drift = velocity_cutoff(psi_sec.gradient(xprev_warp) / psi_sec(xprev_warp), time_step)
+            drift = velocity_cutoff(psi_sec.gradient(xprev) / psi_sec(xprev), time_step)
+            # if last move was rejected, set T = 0  rather than -(Vt)^2/2t.
+            # TODO: think about how T should look in transformed space
             if np.all(x == xprev):
                 self._ts[geo][iwalker].append(0)
             else:
-                self._ts[geo][iwalker].append(-np.linalg.norm(xwarp - xprev_warp - drift*time_step)**2 / (2*time_step))
+                #self._ts[geo][iwalker].append(-np.linalg.norm(node_warp(x - xprev - drift*time_step, psival, psigrad, psisec_val, psisec_grad)[0])**2 / (2*time_step))
+                #self._ts[geo][iwalker].append(-np.linalg.norm(xwarp - xprev_warp - drift*time_step)**2 / (2*time_step))
+                # TODO: restore neglected term involving grad(V)
+                t = -np.linalg.norm(x - xprev - drift*time_step)**2/(2*time_step)
+                ex = xprev / np.linalg.norm(xprev)
+                exprime = x / np.linalg.norm(x)
+                dx = xprev_warp - xprev
+                dxprime = xwarp - x
+                tbar = t + np.linalg.norm(x - xprev - drift*time_step)/(time_step) \
+                    * (dxprime @ exprime + dx @ ex)
+                self._ts[geo][iwalker].append(tbar)
+
 
     def compute_forces(self, steps_per_block, nconf):
         forcel_hf = np.zeros((len(self._increments), len(self._weights), len(self._weights[0])))
@@ -115,6 +131,8 @@ class ForcesDriftDifGfunc:
         fhf = np.zeros(len(self._increments))
         fpulay = np.zeros(len(self._increments))
 
+        # average force terms over the walkers
+        # skip first k steps
         for i in range(len(self._increments)):
             flhf_out[i] = np.average(forcel_hf[i, :, steps_per_block:nconf], weights=w[:, steps_per_block:nconf], axis=0)
             flpulay_out[i] = np.average(forcel_pulay[i, :, steps_per_block:nconf], weights=w[:, steps_per_block:nconf], axis=0)
