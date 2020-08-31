@@ -24,7 +24,28 @@ def node_warp_fd(x, psi, psi_sec, dx=1e-7):
             dxx[j] = dx
             deriv = (warp(x + dxx)[i] - xbar[i]) / dx
             jacobian[i, j] = deriv
-    return xbar, np.linalg.det(jacobian)
+    return xbar, np.linalg.det(jacobian), jacobian
+
+
+def jacobian(x, psi, psi_sec):
+    psival = psi(x); psigrad = psi.gradient(x)
+    psiprimeval = psi_sec(x); psiprimegrad = psi_sec.gradient(x)
+    d = abs(psival)/np.linalg.norm(psigrad)
+    dprime = abs(psiprimeval)/np.linalg.norm(psiprimegrad)
+    nprime = psiprimegrad/np.linalg.norm(psiprimegrad)
+    n = psigrad/np.linalg.norm(psigrad)
+    u, uderiv = cutoff(d)
+    return 1 - u + np.sign(psiprimeval*psival)*(u + (d - dprime)*uderiv) * (n @ nprime)
+
+
+def grad_jacobian(x, psi, psi_sec, dx=1e-4):
+    grad = np.zeros(len(x))
+    j = jacobian(x, psi, psi_sec)
+    for i in range(len(x)):
+        dxx = np.zeros(len(x))
+        dxx[i] = dx
+        grad[i] = (jacobian(x + dxx, psi, psi_sec) - j)/dx
+    return grad
 
 
 def _warp(x, psi, psi_sec):

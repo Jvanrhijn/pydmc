@@ -80,6 +80,14 @@ def flatten(l):
     return [item for sublist in l for item in sublist]
 
 
+def munu(x, a):
+    x1, x2 = x[0], x[1]
+    mu = np.real(np.arccosh((x1 + 1j*x2)/a))
+    nu = np.imag(np.arccosh((x1 + 1j*x2)/a))
+    return np.array([mu, nu])
+
+
+
 
 class TestFunctions(unittest.TestCase):
 
