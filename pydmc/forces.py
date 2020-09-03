@@ -48,10 +48,10 @@ class ForcesDriftDifGfunc:
             psisec_grad_prev = psi_sec.gradient(xprev)
 
             if self._warp:
-                #xwarp, jac = node_warp(x, psival, psigrad, psisec_val, psisec_grad)
-                xwarp, jac, j = node_warp_fd(x, psi, psi_sec)
-                #xprev_warp, jac_prev = node_warp(xprev, psival_prev, psigrad_prev, psisec_val_prev, psisec_grad_prev)
-                xprev_warp, jac_prev, jprev = node_warp_fd(xprev, psi, psi_sec)
+                xwarp, jac, j = node_warp(x, psival, psigrad, psisec_val, psisec_grad)
+                #xwarp, jac, j = node_warp_fd(x, psi, psi_sec)
+                xprev_warp, jac_prev, jprev = node_warp(xprev, psival_prev, psigrad_prev, psisec_val_prev, psisec_grad_prev)
+                #xprev_warp, jac_prev, jprev = node_warp_fd(xprev, psi, psi_sec)
                 self._jacs[geo][iwalker].append(jac)
             else:
                 #xwarp, jac = x, 1
@@ -74,16 +74,15 @@ class ForcesDriftDifGfunc:
 
             self._ss[geo][iwalker].append(time_step * 0.5 * (s + sprime))
 
-            drift = velocity_cutoff(psi_sec.gradient(xprev) / psi_sec(xprev), time_step)
+            drift = velocity_cutoff(psi_sec.gradient(xprev_warp) / psi_sec(xprev_warp), time_step)
             #drift = velocity_cutoff(psi_sec.gradient(xprev) / psi_sec(xprev), time_step)
             # if last move was rejected, set T = 0  rather than -(Vt)^2/2t.
             # TODO: think about how T should look in transformed space
             if np.all(x == xprev):
                 self._ts[geo][iwalker].append(0)
             else:
-                gradlnj = int(self._warp)*grad_jacobian(xprev, psi, psi_sec)/jac_prev
-                u = xwarp - xprev_warp - (drift - 0.5*gradlnj)*time_step
                 jinv = np.linalg.inv(jprev)
+                u = xwarp - xprev_warp - (jprev @ drift)*time_step
                 g = jinv @ jinv
                 norm = lambda v: np.sqrt(v @ g @ v)
                 #norm = np.linalg.norm
@@ -180,11 +179,11 @@ class ForcesVD:
             psisec_grad_prev = psi_sec.gradient(xprev)
 
             if self._warp:
-                xwarp, jac = node_warp(x, psival, psigrad, psisec_val, psisec_grad)
+                xwarp, jac, j = node_warp(x, psival, psigrad, psisec_val, psisec_grad)
                 self._jacs[geo][iwalker].append(jac)
-                xprev_warp = node_warp(xprev, psival_prev, psigrad_prev, psisec_val_prev, psisec_grad_prev)[0]
+                xprev_warp, jac_prev, jprev = node_warp(xprev, psival_prev, psigrad_prev, psisec_val_prev, psisec_grad_prev)
             else:
-                xwarp, jac = x, 1
+                xwarp, jac, j = x, 1, np.eye(len(x))
                 self._jacs[geo][iwalker].append(jac)
                 xprev_warp = xprev
 

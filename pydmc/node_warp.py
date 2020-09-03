@@ -9,9 +9,17 @@ def node_warp(x, psival, psigrad, psisec_val, psisec_grad):
     nprime = psisec_grad / np.linalg.norm(psisec_grad)
     n = psigrad / np.linalg.norm(psigrad)
 
-    u, uderiv = cutoff(d)
-    jac = 1 - u + np.sign(psisec_val*psival)*(u + (d - dprime)*uderiv) * (n @ nprime)
-    return x + (d - dprime)*np.sign(psisec_val)*nprime*u, jac
+    u, uderiv, uderiv2 = cutoff(d)
+    xwarp = x + (d - dprime)*np.sign(psisec_val)*nprime*u
+
+    jacobian = np.eye(len(x)) - u*np.outer(nprime, nprime) \
+        + np.sign(psival*psisec_val)*(u + (d - dprime)*uderiv)*np.outer(nprime, n)
+    detj = 1 - u + np.sign(psisec_val*psival)*(u + (d - dprime)*uderiv) * (n @ nprime)
+    jderiv = (uderiv*np.sign(psisec_val) + (d - dprime)*uderiv2 + uderiv) \
+        * np.einsum('i,j, k', nprime, n, n) \
+            - uderiv*np.sign(psival)*np.einsum('i,j,k', nprime, nprime, n) \
+            - np.sign(psisec_val*psival)*uderiv*np.einsum('i,j,k', nprime, n, n, n)
+    return xwarp, detj, jacobian
 
 
 def node_warp_fd(x, psi, psi_sec, dx=1e-7):
@@ -67,13 +75,17 @@ def cutoff(d, a=0.1):
     if d - a <= 0:
         value = 1
         deriv = 0
+        deriv2 = 0
     elif d - a < a:
         value = math.e*math.exp(-1/(1 - (((d-a)/a)**2))) 
         deriv = math.e * -2*(d - a)*math.exp(-1/(1 - ((d-a)/a)**2)) / (a**2 * (1 - (d-a)**2/a**2)**2)
+        deriv2 = value * (-2/(a**2*(a - ((d-a)/a)**2)**2) - 8*(d-a)**2 / (a**4*(1 - (d-a)**2/a**2)) \
+            + 4*(d-a)**2 / (a**4 * (1 - (d-a)**2/a**2))**4)
     else:
         value = 0
         deriv = 0
-    return value, deriv
+        deriv2 = 0
+    return value, deriv, deriv2
 
 
 
