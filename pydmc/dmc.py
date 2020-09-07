@@ -9,12 +9,12 @@ from pydmc.accept_reject import *
 from pydmc.branching import *
 from pydmc.walker import *
 from pydmc.wavefunction import *
-from pydmc.util import chunks, velocity_cutoff
+from pydmc.util import chunks
 
 
 class DMC:
 
-    def __init__(self, hamiltonian, walkers, brancher, ar, guiding_wf, reference_energy, force_accumulators=None, seed=1):
+    def __init__(self, hamiltonian, walkers, brancher, ar, guiding_wf, reference_energy, force_accumulators=None, seed=1, velocity_cutoff=lambda v, tau: v):
         self._hamiltonian = hamiltonian
         self._walkers = walkers
         self._brancher = brancher
@@ -27,6 +27,7 @@ class DMC:
         self._confs = []
         self._error = [0.0]
         self.force_accumulators = force_accumulators
+        self._velocity_cutoff = velocity_cutoff
 
     def run_dmc(self, time_step, num_blocks, steps_per_block, accumulator=None, neq=1, progress=True):
 
@@ -58,7 +59,8 @@ class DMC:
                                 self._guiding_wf, 
                                 self._hamiltonian, 
                                 self._reference_energy, 
-                                time_step
+                                time_step,
+                                self._velocity_cutoff
                             )
                 
                     if accumulator is not None:
@@ -92,7 +94,7 @@ class DMC:
         local_energy_old = self._hamiltonian(self._guiding_wf, xold) / wf_value_old
 
         # perform accept/reject step
-        accepted, acceptance_prob, xnew = self._ar.move_state(self._guiding_wf, xold, time_step)
+        accepted, acceptance_prob, xnew = self._ar.move_state(self._guiding_wf, xold, time_step, self._velocity_cutoff)
 
         # compute "new" local energy
         wf_value_new = self._guiding_wf(xnew)
@@ -101,10 +103,10 @@ class DMC:
         # update walker weight and configuration
         v = self._guiding_wf.gradient(xold)/self._guiding_wf(xold)
         s = (self._reference_energy - local_energy_old) \
-            * np.linalg.norm(velocity_cutoff(v, time_step))/np.linalg.norm(v)
+            * np.linalg.norm(self._velocity_cutoff(v, time_step))/np.linalg.norm(v)
         vprime = self._guiding_wf.gradient(xnew)/self._guiding_wf(xnew)
         sprime = (self._reference_energy - local_energy_new) \
-             * np.linalg.norm(velocity_cutoff(vprime, time_step))/np.linalg.norm(vprime)
+             * np.linalg.norm(self._velocity_cutoff(vprime, time_step))/np.linalg.norm(vprime)
 
         walker.weight *= math.exp(0.5*(s + sprime)*time_step)
         walker.configuration = xnew

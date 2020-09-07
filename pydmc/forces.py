@@ -1,6 +1,6 @@
 import numpy as np
 
-from pydmc.util import flatten, velocity_cutoff, munu
+from pydmc.util import flatten, munu
 from pydmc.node_warp import *
 
 
@@ -18,7 +18,7 @@ class ForcesDriftDifGfunc:
         self._jacs = [[[] for _ in range(num_walkers)] for _ in range(num_geos+1)]
         self._warp = warp
 
-    def accumulate_samples(self, iwalker, walker, psi, hamiltonian, eref, time_step):
+    def accumulate_samples(self, iwalker, walker, psi, hamiltonian, eref, time_step, velocity_cutoff):
 
         self._weights[iwalker].append(walker.weight)
         self._confs[iwalker].append(walker.configuration)
@@ -48,17 +48,19 @@ class ForcesDriftDifGfunc:
             psisec_grad_prev = psi_sec.gradient(xprev)
 
             if self._warp:
-                xwarp, jac, j = node_warp(x, psival, psigrad, psisec_val, psisec_grad)
+                xwarp, jac, j \
+                    = node_warp(x, psival, psigrad, psisec_val, psisec_grad)
                 #xwarp, jac, j = node_warp_fd(x, psi, psi_sec)
-                xprev_warp, jac_prev, jprev = node_warp(xprev, psival_prev, psigrad_prev, psisec_val_prev, psisec_grad_prev)
+                xprev_warp, jac_prev, jprev \
+                     = node_warp(xprev, psival_prev, psigrad_prev, psisec_val_prev, psisec_grad_prev)
                 #xprev_warp, jac_prev, jprev = node_warp_fd(xprev, psi, psi_sec)
-                self._jacs[geo][iwalker].append(jac)
+                self._jacs[geo][iwalker].append(jac_prev)
             else:
                 #xwarp, jac = x, 1
                 #xprev_warp, jac_prev = xprev, 1
                 xwarp, jac, j = x, 1, np.eye(len(x))
                 xprev_warp, jac_prev, jprev = xprev, 1, np.eye(len(x))
-                self._jacs[geo][iwalker].append(jac)
+                self._jacs[geo][iwalker].append(jac_prev)
 
             self._local_es[geo][iwalker].append(hamiltonian(psi_sec, xwarp) / psi_sec(xwarp))
             self._psis[geo][iwalker].append(psisec_val)
@@ -75,19 +77,18 @@ class ForcesDriftDifGfunc:
             self._ss[geo][iwalker].append(time_step * 0.5 * (s + sprime))
 
             drift = velocity_cutoff(psi_sec.gradient(xprev_warp) / psi_sec(xprev_warp), time_step)
-            #drift = velocity_cutoff(psi_sec.gradient(xprev) / psi_sec(xprev), time_step)
+            drift_nowarp = velocity_cutoff(psi_sec.gradient(xprev) / psi_sec(xprev), time_step)
             # if last move was rejected, set T = 0  rather than -(Vt)^2/2t.
             # TODO: think about how T should look in transformed space
             if np.all(x == xprev):
                 self._ts[geo][iwalker].append(0)
             else:
-                jinv = np.linalg.inv(jprev)
-                u = xwarp - xprev_warp - (jprev @ drift)*time_step
-                g = jinv @ jinv
-                norm = lambda v: np.sqrt(v @ g @ v)
-                #norm = np.linalg.norm
-                self._ts[geo][iwalker].append(-norm(u)**2 / (2*time_step))
-                #self._ts[geo][iwalker].append(-np.linalg.norm(xwarp - xprev_warp - drift*time_step)**2 / (2*time_step))
+                dw = x - xprev - drift*time_step
+                #u = xwarp - xprev_warp - drift*time_step
+                #u = xwarp - xprev_warp - jprev @ drift_nowarp*time_step
+                #v = jprev @ drift_nowarp * time_step - drift*time_step + jprev @ dw
+                u = jprev @ dw
+                self._ts[geo][iwalker].append(-np.linalg.norm(u)**2 / (2*time_step))
 
     def compute_forces(self, steps_per_block, nconf):
         forcel_hf = np.zeros((len(self._increments), len(self._weights), len(self._weights[0])))
@@ -137,7 +138,7 @@ class ForcesDriftDifGfunc:
             fhf[i] = np.average(forcel_hf[i, :, steps_per_block:nconf], weights=w[:, steps_per_block:nconf])
             fpulay[i] = np.average(forcel_pulay[i, :, steps_per_block:nconf], weights=w[:, steps_per_block:nconf])
 
-        return flhf_out, flpulay_out, fhf, fpulay
+        return flhf_out, flpulay_out, fhf, fpulay, w[:, steps_per_block:nconf]
 
 
 class ForcesVD:
@@ -153,7 +154,7 @@ class ForcesVD:
         self._jacs = [[[] for _ in range(num_walkers)] for _ in range(num_geos+1)]
         self._warp = warp
 
-    def accumulate_samples(self, iwalker, walker, psi, hamiltonian, eref, time_step):
+    def accumulate_samples(self, iwalker, walker, psi, hamiltonian, eref, time_step, velocity_cutoff):
         self._weights[iwalker].append(walker.weight)
         self._confs[iwalker].append(walker.configuration)
         x = walker.configuration
@@ -180,8 +181,8 @@ class ForcesVD:
 
             if self._warp:
                 xwarp, jac, j = node_warp(x, psival, psigrad, psisec_val, psisec_grad)
-                self._jacs[geo][iwalker].append(jac)
                 xprev_warp, jac_prev, jprev = node_warp(xprev, psival_prev, psigrad_prev, psisec_val_prev, psisec_grad_prev)
+                self._jacs[geo][iwalker].append(jac_prev)
             else:
                 xwarp, jac, j = x, 1, np.eye(len(x))
                 self._jacs[geo][iwalker].append(jac)
@@ -242,7 +243,7 @@ class ForcesVD:
             fhf[i] = np.average(forcel_hf[i, :, steps_per_block:nconf], weights=w)
             fpulay[i] = np.average(forcel_pulay[i, :, steps_per_block:nconf], weights=w)
 
-        return flhf_out, flpulay_out, fhf, fpulay
+        return flhf_out, flpulay_out, fhf, fpulay, w
 
 
 class ForcesDriftDifGfuncSorella:
@@ -260,7 +261,7 @@ class ForcesDriftDifGfuncSorella:
         self._rew = [[[] for _ in range(num_walkers)]  for _ in range(num_geos+1)]
         self._epsilon = epsilon
 
-    def accumulate_samples(self, iwalker, walker, psi, hamiltonian, eref, time_step):
+    def accumulate_samples(self, iwalker, walker, psi, hamiltonian, eref, time_step, velocity_cutoff):
 
         self._weights[iwalker].append(walker.weight)
         self._confs[iwalker].append(walker.configuration)
@@ -352,4 +353,4 @@ class ForcesDriftDifGfuncSorella:
             fhf[i] = np.average(forcel_hf[i, :, steps_per_block:nconf], weights=w[:, steps_per_block:nconf])
             fpulay[i] = np.average(forcel_pulay[i, :, steps_per_block:nconf], weights=w[:, steps_per_block:nconf])
 
-        return flhf_out, flpulay_out, fhf, fpulay
+        return flhf_out, flpulay_out, fhf, fpulay, w[:, steps_per_block:nconf]

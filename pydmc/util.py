@@ -48,7 +48,7 @@ def laplacian_fd(fun, x, dx=1e-3):
     return lapl
 
 
-def velocity_cutoff(v, tau, a=1):
+def velocity_cutoff_umrigar(v, tau, a=1):
     vnorm = np.linalg.norm(v)
     return v * (-1 + math.sqrt(1 + 2*a*vnorm**2*tau)) / (a*vnorm**2*tau)
 

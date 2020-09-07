@@ -3,14 +3,13 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 
-from pydmc.util import velocity_cutoff
 from pydmc.node_warp import node_distance
 
 
 class AcceptReject(ABC):
 
     @abstractmethod
-    def move_state(self, wave_function, x, time_step):
+    def move_state(self, wave_function, x, time_step, velocity_cutoff):
         pass
 
 
@@ -20,7 +19,7 @@ class DiffuseAcceptReject(AcceptReject):
         self._rng = np.random.default_rng(seed)
         self._fixed_node = fixed_node
 
-    def move_state(self, wave_function, x, time_step):
+    def move_state(self, wave_function, x, time_step, velocity_cutoff=lambda v, tau: v):
         # TODO: allow single-electron moves, ignore for now
         #       since our test case only has 1 particle
         value_old = wave_function(x)
@@ -80,8 +79,6 @@ class DiffuseAcceptRejectSorella(AcceptReject):
         dprime = node_distance(grad_new, value_new)
         deps_prime = dprime if dprime > self._epsilon \
             else self._epsilon*(dprime/self._epsilon)**(dprime/self._epsilon)
-
-        
 
         acceptance = min(1, try_num * (value_new * deps_prime / dprime)**2 \
                          / (try_den * (value_old * deps/d)**2))
