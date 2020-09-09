@@ -67,7 +67,7 @@ def bin_samples(samples, bin_size=100):
     return block_avgs
 
 
-def block_error(data, block_size):
+def block_error(data, block_size, weights=None):
     num_blocks = len(data) // block_size
     blocks = np.array_split(data, num_blocks)
     bmeans = np.array([np.mean(b) for b in blocks])
