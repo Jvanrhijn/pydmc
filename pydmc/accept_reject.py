@@ -13,6 +13,26 @@ class AcceptReject(ABC):
         pass
 
 
+class BoxAcceptReject(AcceptReject):
+
+    def __init__(self, seed=0):
+        self._rng = np.random.default_rng(seed)
+
+    def move_state(self, wave_function, x, time_step, velocity_cutoff=lambda v, tau: v):
+        value_old = wave_function(x)
+        
+        xprop = x + time_step/2 * self._rng.uniform(low=-1, high=1, size=x.shape)
+
+        value_new = wave_function(xprop)
+
+        ratio = value_new**2 / value_old**2
+
+        acceptance = min(1, ratio)
+        accepted = acceptance > self._rng.uniform()
+
+        return accepted, acceptance, (xprop if accepted else x)
+
+
 class DiffuseAcceptReject(AcceptReject):
 
     def __init__(self, seed=0, fixed_node=False):
