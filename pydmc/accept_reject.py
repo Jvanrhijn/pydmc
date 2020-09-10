@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 from pydmc.node_warp import node_distance
+from pydmc.util import velocity_cutoff_umrigar
 
 
 class AcceptReject(ABC):
@@ -39,11 +40,11 @@ class DiffuseAcceptReject(AcceptReject):
         self._rng = np.random.default_rng(seed)
         self._fixed_node = fixed_node
 
-    def move_state(self, wave_function, x, time_step, velocity_cutoff=lambda v, tau: v):
+    def move_state(self, wave_function, x, time_step): #, velocity_cutoff=lambda v, tau: v):
         # TODO: allow single-electron moves, ignore for now
         #       since our test case only has 1 particle
         value_old = wave_function(x)
-        drift_old = velocity_cutoff(wave_function.gradient(x) / value_old, time_step)
+        drift_old = velocity_cutoff_umrigar(wave_function.gradient(x) / value_old, time_step)
 
         xprop = x + drift_old * time_step + self._rng.normal(size=x.shape, scale=math.sqrt(time_step))
 
@@ -53,7 +54,7 @@ class DiffuseAcceptReject(AcceptReject):
         if value_new == 0:
             return False, 0, x
 
-        drift_new = velocity_cutoff(wave_function.gradient(xprop) / value_new, time_step)
+        drift_new = velocity_cutoff_umrigar(wave_function.gradient(xprop) / value_new, time_step)
 
         # reject if node is crossed and we're doing FN-DMC
         if self._fixed_node and math.copysign(1, value_old) != math.copysign(1, value_new):
