@@ -16,6 +16,7 @@ class VMC:
     def __init__(self, hamiltonian, initial_conf, ar, guiding_wf, force_accumulators=None, seed=1, velocity_cutoff=lambda v, tau: v):
         self._hamiltonian = hamiltonian
         self._conf = initial_conf
+        self._confs = [initial_conf]
         self._ar = ar
         self._guiding_wf = guiding_wf
         self._energy_all = []
@@ -39,16 +40,14 @@ class VMC:
             for i in range(steps_per_block):
 
                 local_energy = self._update(time_step)
+                self._confs.append(self._conf)
 
                 if self.force_accumulators is not None and b >= neq:
                     for fa in self.force_accumulators:
                         fa.accumulate_samples(
                             self._conf, 
                             self._guiding_wf, 
-                            self._hamiltonian, 
-                            self._energy_cumulative[-1],
-                            time_step,
-                            self._velocity_cutoff
+                            self._hamiltonian
                         )
                 
                 block_energies[i] = local_energy

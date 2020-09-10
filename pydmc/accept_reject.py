@@ -48,6 +48,11 @@ class DiffuseAcceptReject(AcceptReject):
         xprop = x + drift_old * time_step + self._rng.normal(size=x.shape, scale=math.sqrt(time_step))
 
         value_new = wave_function(xprop)
+
+        # edge case
+        if value_new == 0:
+            return False, 0, x
+
         drift_new = velocity_cutoff(wave_function.gradient(xprop) / value_new, time_step)
 
         # reject if node is crossed and we're doing FN-DMC
