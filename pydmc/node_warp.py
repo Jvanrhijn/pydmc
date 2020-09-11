@@ -85,11 +85,12 @@ def cutoff(d, a=0.1):
 
 
 
-#def cutoff(d, a=0.2):
-#    b = a/5
-#    value = 0.5 * (1 + math.tanh((a - d)/b)) if d < 4*a else 0.0
-#    deriv = -1/(2*b) / math.cosh((a - d)/b)**2 if d < 4*a else 0.0
-#    return value, deriv, 0
+def cutoff_tanh(d, a=0.2):
+    b = a/5
+    value = 0.5 * (1 + math.tanh((a - d)/b)) if d < 4*a else 0.0
+    deriv = -1/(2*b) / math.cosh((a - d)/b)**2 if d < 4*a else 0.0
+    deriv2 = -1/b**2 * math.tanh((a - d)/b) / math.cosh((a - d)/b)**2 if d < 4*a else 0.0
+    return value, deriv, deriv2
 
 
 def node_distance(psigrad, psi):

@@ -65,7 +65,7 @@ class VMC:
         xold = copy.deepcopy(self._conf)
 
         # perform accept/reject step
-        accepted, acceptance_prob, xnew = self._ar.move_state(self._guiding_wf, xold, time_step, self._velocity_cutoff)
+        accepted, acceptance_prob, xnew = self._ar.move_state(self._guiding_wf, xold, time_step)
 
         # compute "new" local energy
         wf_value_new = self._guiding_wf(xnew)
