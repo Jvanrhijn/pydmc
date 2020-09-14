@@ -1,6 +1,7 @@
 import copy
 import math
 import multiprocessing
+from datetime import datetime
 
 import numpy as np
 import tqdm
@@ -29,7 +30,11 @@ class DMC:
         self.force_accumulators = force_accumulators
         self._velocity_cutoff = velocity_cutoff
 
-    def run_dmc(self, time_step, num_blocks, steps_per_block, accumulator=None, neq=1, progress=True):
+    def run_dmc(self, time_step, num_blocks, steps_per_block, accumulator=None, neq=1, progress=True, verbose=False):
+        start_time = datetime.now()
+
+        if progress and verbose:
+            raise ValueError("Can't output a progress bar and logging data")
 
         if progress:
             range_wrapper = tqdm.tqdm
@@ -77,10 +82,18 @@ class DMC:
 
                 self._brancher.perform_branching(self._walkers)
 
+            block_average_energy = np.mean(block_energies)
+
+            if verbose:
+                outstring = f"Time elapsed: {datetime.now() - start_time}"
+                outstring += f" | Block: {str(b+1).zfill(1+math.ceil(math.log10(num_blocks)))}/{num_blocks} | "
+                outstring += f"Energy estimate: {self._energy_cumulative[-1]:.5f} +- {self._error[-1]:.5f}"
+                outstring += f" | Block energy: {block_average_energy:.5f}"
+                outstring += f" | Trial energy: {self._energy_cumulative[-1]:.5f}"
+                print(outstring)
 
             # skip equilibration blocks
             if b >= neq:
-                block_average_energy = np.mean(block_energies)
                 self.update_energy_estimate(block_average_energy)
                 self._reference_energy = (self._reference_energy + self._energy_cumulative[-1]) / 2
 
