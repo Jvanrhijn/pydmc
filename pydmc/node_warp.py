@@ -73,10 +73,10 @@ def cutoff(d, a=0.1):
         deriv = 0
         deriv2 = 0
     elif d - a < a:
-        value = math.e*math.exp(-1/(1 - (((d-a)/a)**2))) 
-        deriv = math.e * -2*(d - a)*math.exp(-1/(1 - ((d-a)/a)**2)) / (a**2 * (1 - (d-a)**2/a**2)**2)
-        deriv2 = value * (-2/(a**2*(a - ((d-a)/a)**2)**2) - 8*(d-a)**2 / (a**4*(1 - (d-a)**2/a**2))**3 \
-            + 4*(d-a)**2 / (a**4 * (1 - (d-a)**2/a**2))**4)
+        y = 1 - ((d-a)/a)**2
+        value = math.exp(1 - 1/y)
+        deriv = 2*value*(d-a)/(a**2*y**2)
+        deriv2 = value * (-2/(a**2*y**2) - 8*(d-a)**2/(a**4*y**3) - 4*(d-a)**2/(a**4*y**4))
     else:
         value = 0
         deriv = 0

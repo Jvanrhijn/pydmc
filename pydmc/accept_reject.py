@@ -34,6 +34,32 @@ class BoxAcceptReject(AcceptReject):
         return accepted, acceptance, (xprop if accepted else x)
 
 
+class WarpBoxAcceptReject(AcceptReject):
+    
+    def __init__(self, seed=0, transform=lambda x, psi: (x, 1)):
+        self._rng = np.random.default_rng(seed)
+        self._transform = transform
+
+    def move_state(self, wave_function, x, time_step, velocity_cutoff=lambda v, tau: v):
+        xwarp_old, jac_old = self._transform(x, wave_function)[0:2]
+        value_old = wave_function(xwarp_old)
+        
+        xprop = x + time_step/2 * self._rng.uniform(low=-1, high=1, size=x.shape)
+
+        xwarp_prop, jac_prop = self._transform(xprop, wave_function)[0:2]
+
+        value_new = wave_function(xwarp_prop)
+
+        ratio = value_new**2 / value_old**2 * jac_prop / jac_old
+
+        acceptance = min(1, ratio)
+        accepted = acceptance > self._rng.uniform()
+
+        return accepted, acceptance, (xprop if accepted else x)
+
+
+
+
 class DiffuseAcceptReject(AcceptReject):
 
     def __init__(self, seed=0, fixed_node=False):
