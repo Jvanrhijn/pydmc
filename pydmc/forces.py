@@ -25,30 +25,6 @@ class ForcesExactAndVD:
         self._cutoff = cutoff
         self._verbose = verbose
 
-    def __repr__(self):
-        data = "Force Accumulator (Exact + VD, warp + no warp)\n"
-        incr = np.insert(self._increments, 0, 0)
-        for geo in range(len(incr)):
-            da = np.zeros(len(incr)-1)
-            if geo > 0:
-                da[geo-1] = incr[geo]
-            try:
-                data += f"Increment:            {da}\n"
-                data += f"Local Energy:         {self._local_es[geo][-1]}\n"
-                data += f"Psi:                  {self._psis[geo][-1]}\n"
-                data += f"S(x', x):             {self._ss[geo][-1]}\n"
-                data += f"T(x', x):             {self._ts[geo][-1]}\n"
-                data += f"W:                    {self._weights[geo][-1]}\n"
-                data += f"x:                    {self._confs[geo][-1]}\n"
-                data += f"J:                    {self._jacs[geo][-1]}\n"
-                data += f"Local Energy (warp):  {self._local_es_warp[geo][-1]}\n"
-                data += f"Psi (warp):           {self._psis_warp[geo][-1]}\n"
-                data += f"S(x', x) (warp):      {self._ss_warp[geo][-1]}\n"
-                data += f"T(x', x) (warp):      {self._ts_warp[geo][-1]}\n\n"
-            except IndexError:
-                print("Empty data")
-        return data
-
     def accumulate_samples(self, iwalker, walker, psi, hamiltonian, eref, time_step, velocity_cutoff):
 
         self._weights[iwalker].append(walker.weight)
@@ -63,6 +39,10 @@ class ForcesExactAndVD:
         psigrad_prev = psi.gradient(xprev)
 
         incr = np.insert(self._increments, 0, 0)
+
+        if self._verbose:
+            print(f"Walker: {iwalker}")
+            print(f"x: {walker.configuration}")
 
         for geo in range(len(incr)):
             # TODO: only collect local energy on first pass to get correct S
@@ -131,7 +111,17 @@ class ForcesExactAndVD:
                 self._ts_warp[geo][iwalker].append(-np.linalg.norm(uwarp)**2 / (2*time_step))
 
             if self._verbose:
-                print(self)
+                print(f"Increment: {da}")
+                print(f"Local E: {self._local_es[geo][iwalker][-1]}")
+                print(f"Local E (warp): {self._local_es_warp[geo][iwalker][-1]}")
+                print(f"psi: {self._psis[geo][iwalker][-1]}")
+                print(f"psi (warp): {self._psis_warp[geo][iwalker][-1]}")
+                print(f"T: {self._ts[geo][iwalker][-1]}")
+                print(f"T (warp): {self._ts_warp[geo][iwalker][-1]}")
+                print(f"S: {self._ss[geo][iwalker][-1]}")
+                print(f"S (warp): {self._ss_warp[geo][iwalker][-1]}")
+                print(f"J: {self._jacs[geo][iwalker][-1]}")
+
 
     def compute_forces(self, steps_per_block, nconf):
         forcel_hf = np.zeros((len(self._increments), len(self._weights), len(self._weights[0])))
