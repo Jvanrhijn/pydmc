@@ -6,7 +6,7 @@ from pydmc.node_warp import *
 
 class ForcesExactAndVD:
 
-    def __init__(self, increments, num_walkers, cutoff=lambda d: (0, 0, 0)):
+    def __init__(self, increments, num_walkers, cutoff=lambda d: (0, 0, 0), verbose=False):
         self._increments = increments
         num_geos = len(increments)
         self._local_es = [[[] for _ in range(num_walkers)] for _ in range(num_geos+1)]
@@ -23,6 +23,23 @@ class ForcesExactAndVD:
         self._ts_warp = [[[] for _ in range(num_walkers)] for _ in range(num_geos+1)]
 
         self._cutoff = cutoff
+        self._verbose = verbose
+
+    def __repr__(self):
+        data = "Force Accumulator (Exact + VD, warp + no warp)\n"
+        data += f"Increments:           {self._increments}\n"
+        data += f"Local Energy:         {self._local_es[-1]}\n"
+        data += f"Psi:                  {self._psis[-1]}\n"
+        data += f"S(x', x):             {self._ss[-1]}\n"
+        data += f"T(x', x):             {self._ts[-1]}\n"
+        data += f"W:                    {self._weights[-1]}\n"
+        data += f"x:                    {self._confs[-1]}\n"
+        data += f"J:                    {self._jacs[-1]}\n"
+        data += f"Local Energy (warp):  {self._local_es_warp[-1]}\n"
+        data += f"Psi (warp):           {self._psis_warp[-1]}\n"
+        data += f"S(x', x) (warp):      {self._ss_warp[-1]}\n"
+        data += f"T(x', x) (warp):      {self._ts_warp[-1]}\n"
+        return data
 
     def accumulate_samples(self, iwalker, walker, psi, hamiltonian, eref, time_step, velocity_cutoff):
 
@@ -93,6 +110,7 @@ class ForcesExactAndVD:
 
             drift = velocity_cutoff(psi_sec.gradient(xprev) / psi_sec(xprev), time_step)
             drift_warp = velocity_cutoff(psisec_grad_prev_warp / psisec_val_prev_warp, time_step)
+
             # if last move was rejected, set T = 0  rather than -(Vt)^2/2t.
             # TODO: think about how T should look in transformed space
             if np.all(x == xprev):
@@ -103,6 +121,9 @@ class ForcesExactAndVD:
                 uwarp = xwarp - xprev_warp - drift_warp*time_step
                 self._ts[geo][iwalker].append(-np.linalg.norm(u)**2 / (2*time_step))
                 self._ts_warp[geo][iwalker].append(-np.linalg.norm(uwarp)**2 / (2*time_step))
+
+            if self._verbose:
+                print(self)
 
     def compute_forces(self, steps_per_block, nconf):
         forcel_hf = np.zeros((len(self._increments), len(self._weights), len(self._weights[0])))
