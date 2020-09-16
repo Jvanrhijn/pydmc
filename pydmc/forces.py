@@ -27,18 +27,26 @@ class ForcesExactAndVD:
 
     def __repr__(self):
         data = "Force Accumulator (Exact + VD, warp + no warp)\n"
-        data += f"Increments:           {self._increments}\n"
-        data += f"Local Energy:         {self._local_es[-1]}\n"
-        data += f"Psi:                  {self._psis[-1]}\n"
-        data += f"S(x', x):             {self._ss[-1]}\n"
-        data += f"T(x', x):             {self._ts[-1]}\n"
-        data += f"W:                    {self._weights[-1]}\n"
-        data += f"x:                    {self._confs[-1]}\n"
-        data += f"J:                    {self._jacs[-1]}\n"
-        data += f"Local Energy (warp):  {self._local_es_warp[-1]}\n"
-        data += f"Psi (warp):           {self._psis_warp[-1]}\n"
-        data += f"S(x', x) (warp):      {self._ss_warp[-1]}\n"
-        data += f"T(x', x) (warp):      {self._ts_warp[-1]}\n"
+        incr = np.insert(self._increments, 0, 0)
+        for geo in range(len(incr)):
+            da = np.zeros(len(incr)-1)
+            if geo > 0:
+                da[geo-1] = incr[geo]
+            try:
+                data += f"Increment:            {da}\n"
+                data += f"Local Energy:         {self._local_es[geo][-1]}\n"
+                data += f"Psi:                  {self._psis[geo][-1]}\n"
+                data += f"S(x', x):             {self._ss[geo][-1]}\n"
+                data += f"T(x', x):             {self._ts[geo][-1]}\n"
+                data += f"W:                    {self._weights[geo][-1]}\n"
+                data += f"x:                    {self._confs[geo][-1]}\n"
+                data += f"J:                    {self._jacs[geo][-1]}\n"
+                data += f"Local Energy (warp):  {self._local_es_warp[geo][-1]}\n"
+                data += f"Psi (warp):           {self._psis_warp[geo][-1]}\n"
+                data += f"S(x', x) (warp):      {self._ss_warp[geo][-1]}\n"
+                data += f"T(x', x) (warp):      {self._ts_warp[geo][-1]}\n\n"
+            except IndexError:
+                print("Empty data")
         return data
 
     def accumulate_samples(self, iwalker, walker, psi, hamiltonian, eref, time_step, velocity_cutoff):
