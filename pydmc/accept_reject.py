@@ -34,32 +34,6 @@ class BoxAcceptReject(AcceptReject):
         return accepted, acceptance, (xprop if accepted else x)
 
 
-class WarpBoxAcceptReject(AcceptReject):
-    
-    def __init__(self, seed=0, transform=lambda x, psi: (x, 1)):
-        self._rng = np.random.default_rng(seed)
-        self._transform = transform
-
-    def move_state(self, wave_function, x, time_step, velocity_cutoff=lambda v, tau: v):
-        xwarp_old, jac_old = self._transform(x, wave_function)[0:2]
-        value_old = wave_function(xwarp_old)
-        
-        xprop = x + time_step/2 * self._rng.uniform(low=-1, high=1, size=x.shape)
-
-        xwarp_prop, jac_prop = self._transform(xprop, wave_function)[0:2]
-
-        value_new = wave_function(xwarp_prop)
-
-        ratio = value_new**2 / value_old**2 * jac_prop / jac_old
-
-        acceptance = min(1, ratio)
-        accepted = acceptance > self._rng.uniform()
-
-        return accepted, acceptance, (xprop if accepted else x)
-
-
-
-
 class DiffuseAcceptReject(AcceptReject):
 
     def __init__(self, seed=0, fixed_node=False):
@@ -108,13 +82,18 @@ class DiffuseAcceptRejectSorella(AcceptReject):
     def move_state(self, wave_function, x, time_step):
         value_old = wave_function(x)
         grad_old = wave_function.gradient(x)
-        drift_old = velocity_cutoff(grad_old / value_old, time_step)
+        drift_old = velocity_cutoff_umrigar(grad_old / value_old, time_step)
 
         xprop = x + drift_old * time_step + self._rng.normal(size=x.shape, scale=math.sqrt(time_step))
 
         value_new = wave_function(xprop)
+
+        # edge case
+        if value_new == 0:
+            return False, 0, x
+
         grad_new = wave_function.gradient(xprop)
-        drift_new = velocity_cutoff(grad_new / value_new, time_step)
+        drift_new = velocity_cutoff_umrigar(grad_new / value_new, time_step)
 
         # reject if node is crossed and we're doing FN-DMC
         if self._fixed_node and math.copysign(1, value_old) != math.copysign(1, value_new):
@@ -142,3 +121,39 @@ class DiffuseAcceptRejectSorella(AcceptReject):
         self._rng = np.random.default_rng(seed)
 
 
+class BoxAcceptRejectSorella(AcceptReject):
+
+    def __init__(self, seed=0, epsilon=1e-2):
+        self._rng = np.random.default_rng(seed)
+        self._epsilon = epsilon
+
+    def move_state(self, wave_function, x, time_step):
+        value_old = wave_function(x)
+        grad_old = wave_function.gradient(x)
+
+        xprop = x + time_step/2 * self._rng.uniform(low=-1, high=1, size=x.shape)
+
+        value_new = wave_function(xprop)
+        grad_new = wave_function.gradient(xprop)
+
+        # edge case
+        if value_new == 0:
+            return False, 0, x
+
+        # compute new distribution according to Sorella
+        d = node_distance(grad_old, value_old)
+        deps = d if d > self._epsilon \
+            else self._epsilon*(d/self._epsilon)**(d/self._epsilon)
+
+        dprime = node_distance(grad_new, value_new)
+        deps_prime = dprime if dprime > self._epsilon \
+            else self._epsilon*(dprime/self._epsilon)**(dprime/self._epsilon)
+
+        acceptance = min(1, (value_new * deps_prime / dprime)**2 \
+                         / (value_old * deps/d)**2)
+        accepted = acceptance > self._rng.uniform()
+
+        return accepted, acceptance, (xprop if accepted else x)
+
+    def reseed(self, seed):
+        self._rng = np.random.default_rng(seed)

@@ -1,6 +1,6 @@
 import numpy as np
 
-from pydmc.util import flatten, munu
+from pydmc.util import flatten, munu, velocity_cutoff_umrigar
 from pydmc.node_warp import *
 
 
@@ -65,8 +65,16 @@ class ForcesExactAndVD:
 
             self._jacs[geo][iwalker].append(jac_prev)
 
-            self._local_es[geo][iwalker].append(hamiltonian(psi_sec, x) / psisec_val)
-            self._local_es_warp[geo][iwalker].append(hamiltonian(psi_sec, xwarp) / psisec_val_warp)
+            vprime = psisec_grad/psisec_val
+            vprimebar = velocity_cutoff(vprime, time_step)
+            ratioprime = np.linalg.norm(vprimebar)/np.linalg.norm(vprime)
+
+            vprime_warp = psisec_grad_warp/psisec_val_warp
+            vprime_warp_bar = velocity_cutoff(vprime_warp, time_step)
+            ratio_prime_warp = np.linalg.norm(vprime_warp_bar)/np.linalg.norm(vprime_warp)
+
+            self._local_es[geo][iwalker].append(hamiltonian(psi_sec, x) / psisec_val * ratioprime)
+            self._local_es_warp[geo][iwalker].append(hamiltonian(psi_sec, xwarp) / psisec_val_warp * ratio_prime_warp)
             
             self._psis[geo][iwalker].append(psisec_val)
             self._psis_warp[geo][iwalker].append(psisec_val_warp)
@@ -75,18 +83,18 @@ class ForcesExactAndVD:
             local_e_prev_warp = self._local_es_warp[geo][iwalker][-2] if len(self._local_es_warp[geo][iwalker]) > 1 else eref
 
             v = psisec_grad_prev/psisec_val_prev
-            vprime = psisec_grad/psisec_val
-            s = (eref - local_e_prev) \
-                * np.linalg.norm(velocity_cutoff(v, time_step))/np.linalg.norm(v)
-            sprime = (eref - self._local_es[geo][iwalker][-1]) \
-                * np.linalg.norm(velocity_cutoff(vprime, time_step))/np.linalg.norm(vprime)
+            vbar = velocity_cutoff(v, time_step)
+            ratio = np.linalg.norm(vbar)/np.linalg.norm(v)
+
+            s = (eref - local_e_prev) * ratio
+            sprime = (eref - self._local_es[geo][iwalker][-1]) * ratioprime
 
             vwarp = psisec_grad_prev_warp/psisec_val_prev_warp
-            vprime_warp = psisec_grad_warp/psisec_val_warp
-            swarp = (eref - local_e_prev_warp) \
-                * np.linalg.norm(velocity_cutoff(vwarp, time_step))/np.linalg.norm(vwarp)
-            sprime_warp = (eref - self._local_es_warp[geo][iwalker][-1]) \
-                * np.linalg.norm(velocity_cutoff(vprime_warp, time_step))/np.linalg.norm(vprime_warp)
+            vwarp_bar = velocity_cutoff(vwarp, time_step)
+            ratio_warp = np.linalg.norm(vwarp_bar)/np.linalg.norm(vwarp)
+
+            swarp = (eref - local_e_prev_warp) * ratio_warp
+            sprime_warp = (eref - self._local_es_warp[geo][iwalker][-1]) * ratio_prime_warp
 
             self._ss[geo][iwalker].append(time_step * 0.5 * (s + sprime))
             self._ss_warp[geo][iwalker].append(time_step * 0.5 * (swarp + sprime_warp))
@@ -230,7 +238,7 @@ class ForcesVMC:
 
         self._cutoff = cutoff
 
-    def accumulate_samples(self, conf, psi, hamiltonian):
+    def accumulate_samples(self, conf, psi, hamiltonian, tau):
 
         self._confs.append(conf)
         x = conf
@@ -253,11 +261,19 @@ class ForcesVMC:
                 = node_warp(x, psival, psigrad, psisec_val, psisec_grad, cutoff=self._cutoff)
 
             psisec_val_warp = psi_sec(xwarp)
+            psisec_grad_warp = psi_sec.gradient(xwarp)
 
             self._jacs[geo].append(jac)
 
-            self._local_es[geo].append(hamiltonian(psi_sec, x) / psisec_val)
-            self._local_es_warp[geo].append(hamiltonian(psi_sec, xwarp) / psisec_val_warp)
+            v = psisec_grad / psisec_val
+            vbar = velocity_cutoff_umrigar(v, tau)
+            ratio = np.linalg.norm(vbar)/np.linalg.norm(v)
+            vwarp = psisec_grad_warp/psisec_val_warp
+            vwarpbar = velocity_cutoff_umrigar(vwarp, tau)
+            ratio_warp = np.linalg.norm(vwarpbar)/np.linalg.norm(vwarp)
+
+            self._local_es[geo].append(hamiltonian(psi_sec, x) / psisec_val * ratio)
+            self._local_es_warp[geo].append(hamiltonian(psi_sec, xwarp) / psisec_val_warp * ratio_warp)
             
             self._psis[geo].append(psisec_val)
             self._psis_warp[geo].append(psisec_val_warp)
@@ -305,3 +321,70 @@ class ForcesVMC:
 
         return forcel_hf, forcel_hf_warp, forcel_pulay, forcel_pulay_warp, \
             fhf, fhf_warp, fpulay, fpulay_warp
+
+
+class ForcesVMCSorella:
+
+    def __init__(self, increments, epsilon=1e-2):
+        self._increments = increments
+        num_geos = len(increments)
+        self._local_es = [[] for _ in range(num_geos+1)]
+        self._psis = [[] for _ in range(num_geos+1)]
+        self._distrs = [[] for _ in range(num_geos+1)]
+
+        self._confs = []
+
+        self._epsilon = epsilon
+
+    def accumulate_samples(self, conf, psi, hamiltonian):
+
+        self._confs.append(conf)
+        x = conf
+        incr = np.insert(self._increments, 0, 0)
+
+        for geo in range(len(incr)):
+            # setup the secondary / "deformed" wave function
+            da = np.zeros(len(incr)-1)
+            if geo > 0:
+                da[geo-1] = incr[geo]
+            psi_sec = psi.deform(da)
+
+            psisec_val = psi_sec(x)
+            psisec_grad = psi_sec.gradient(x)
+
+            self._local_es[geo].append(hamiltonian(psi_sec, x) / psisec_val)
+            self._psis[geo].append(psisec_val)
+            self._distrs[geo].append(self.distribution(psisec_val, psisec_grad))
+
+    def compute_forces(self, steps_per_block, nconf):
+        forcel_hf = np.zeros((len(self._increments), len(self._local_es[0])))
+        forcel_pulay = np.zeros((len(self._increments), len(self._local_es[0])))
+
+        elocal = np.array(self._local_es)
+        psis = np.array(self._psis)
+        energy = np.mean(elocal[0])
+        distrs = np.array(self._distrs)
+
+        weights = psis[0]**2 / distrs[0]
+
+        for i, da in enumerate(self._increments):
+            elocal_deriv = (elocal[i+1] - elocal[0])/da
+            psideriv = (np.log(np.abs(psis[i+1]**2)) - np.log(np.abs(psis[0]**2)))/da
+
+            #Compute Hellman-Feynman and Pulay force terms
+            forcel_hf[i, :] = -elocal_deriv
+            forcel_pulay[i, :] = -(elocal[0, :] - energy) * psideriv
+
+        fhf = np.average(forcel_hf[0], weights=weights)
+
+        fpulay = np.average(forcel_pulay[0], weights=weights)
+
+        return forcel_hf*weights, forcel_pulay*weights, \
+            fhf, fpulay
+
+    def distribution(self, psi, psigrad):
+        # compute new distribution according to Sorella
+        d = node_distance(psigrad, psi)
+        deps = d if d > self._epsilon \
+            else self._epsilon*(d/self._epsilon)**(d/self._epsilon)
+        return psi**2 * (deps/d)**2
