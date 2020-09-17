@@ -47,7 +47,8 @@ class VMC:
                         fa.accumulate_samples(
                             self._conf, 
                             self._guiding_wf, 
-                            self._hamiltonian
+                            self._hamiltonian,
+                            time_step
                         )
                 
                 block_energies[i] = local_energy
