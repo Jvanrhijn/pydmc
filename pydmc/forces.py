@@ -6,7 +6,7 @@ from pydmc.node_warp import *
 
 class ForcesExactAndVD:
 
-    def __init__(self, increments, num_walkers, cutoff=lambda d: (0, 0, 0)):
+    def __init__(self, increments, num_walkers, cutoff=lambda d: (0, 0, 0), verbose=False):
         self._increments = increments
         num_geos = len(increments)
         self._local_es = [[[] for _ in range(num_walkers)] for _ in range(num_geos+1)]
@@ -23,6 +23,7 @@ class ForcesExactAndVD:
         self._ts_warp = [[[] for _ in range(num_walkers)] for _ in range(num_geos+1)]
 
         self._cutoff = cutoff
+        self._verbose = verbose
 
     def accumulate_samples(self, iwalker, walker, psi, hamiltonian, eref, time_step, velocity_cutoff):
 
@@ -38,6 +39,10 @@ class ForcesExactAndVD:
         psigrad_prev = psi.gradient(xprev)
 
         incr = np.insert(self._increments, 0, 0)
+
+        if self._verbose:
+            print(f"Walker: {iwalker}")
+            print(f"x: {walker.configuration}")
 
         for geo in range(len(incr)):
             # TODO: only collect local energy on first pass to get correct S
@@ -101,6 +106,7 @@ class ForcesExactAndVD:
 
             drift = velocity_cutoff(psi_sec.gradient(xprev) / psi_sec(xprev), time_step)
             drift_warp = velocity_cutoff(psisec_grad_prev_warp / psisec_val_prev_warp, time_step)
+
             # if last move was rejected, set T = 0  rather than -(Vt)^2/2t.
             # TODO: think about how T should look in transformed space
             if np.all(x == xprev):
@@ -111,6 +117,19 @@ class ForcesExactAndVD:
                 uwarp = xwarp - xprev_warp - drift_warp*time_step
                 self._ts[geo][iwalker].append(-np.linalg.norm(u)**2 / (2*time_step))
                 self._ts_warp[geo][iwalker].append(-np.linalg.norm(uwarp)**2 / (2*time_step))
+
+            if self._verbose:
+                print(f"Increment: {da}")
+                print(f"Local E: {self._local_es[geo][iwalker][-1]}")
+                print(f"Local E (warp): {self._local_es_warp[geo][iwalker][-1]}")
+                print(f"psi: {self._psis[geo][iwalker][-1]}")
+                print(f"psi (warp): {self._psis_warp[geo][iwalker][-1]}")
+                print(f"T: {self._ts[geo][iwalker][-1]}")
+                print(f"T (warp): {self._ts_warp[geo][iwalker][-1]}")
+                print(f"S: {self._ss[geo][iwalker][-1]}")
+                print(f"S (warp): {self._ss_warp[geo][iwalker][-1]}")
+                print(f"J: {self._jacs[geo][iwalker][-1]}")
+
 
     def compute_forces(self, steps_per_block, nconf):
         forcel_hf = np.zeros((len(self._increments), len(self._weights), len(self._weights[0])))
@@ -236,6 +255,10 @@ class ForcesVMC:
         self._confs = []
         self._jacs = [[] for _ in range(num_geos+1)]
 
+        self._ds = [[] for _ in range(num_geos+1)]
+        self._dxs = [[] for _ in range(num_geos+1)]
+        self._elgrad = [[] for _ in range(num_geos+1)]
+
         self._cutoff = cutoff
 
     def accumulate_samples(self, conf, psi, hamiltonian, tau):
@@ -260,6 +283,9 @@ class ForcesVMC:
             xwarp, jac, j \
                 = node_warp(x, psival, psigrad, psisec_val, psisec_grad, cutoff=self._cutoff)
 
+            self._dxs[geo].append(xwarp - x)
+            self._elgrad[geo].append(gradient_fd(lambda x: (-0.5*hamiltonian(psi_sec, x)/psisec_val), x))
+
             psisec_val_warp = psi_sec(xwarp)
             psisec_grad_warp = psi_sec.gradient(xwarp)
 
@@ -272,8 +298,8 @@ class ForcesVMC:
             vwarpbar = velocity_cutoff_umrigar(vwarp, tau)
             ratio_warp = np.linalg.norm(vwarpbar)/np.linalg.norm(vwarp)
 
-            self._local_es[geo].append(hamiltonian(psi_sec, x) / psisec_val * ratio)
-            self._local_es_warp[geo].append(hamiltonian(psi_sec, xwarp) / psisec_val_warp * ratio_warp)
+            self._local_es[geo].append(hamiltonian(psi_sec, x) / psisec_val)
+            self._local_es_warp[geo].append(hamiltonian(psi_sec, xwarp) / psisec_val_warp)
             
             self._psis[geo].append(psisec_val)
             self._psis_warp[geo].append(psisec_val_warp)
@@ -291,6 +317,10 @@ class ForcesVMC:
         elocal_warp = np.array(self._local_es_warp)
         psis_warp = np.array(self._psis_warp)
 
+        ds = np.array(self._ds)
+        dxs = np.array(self._dxs)
+        elgrad = np.array(self._elgrad)
+
         jacs = np.array(self._jacs)
 
         energy = np.mean(elocal[0])
@@ -306,7 +336,8 @@ class ForcesVMC:
 
             #Compute Hellman-Feynman and Pulay force terms
             forcel_hf[i, :] = -elocal_deriv 
-            forcel_hf_warp[i, :] = -elocal_deriv_warp
+            #forcel_hf_warp[i, :] = -elocal_deriv_warp
+            forcel_hf_warp[i, :] = -(elocal_deriv + elgrad[i] @ dxs/da)
 
             forcel_pulay[i, :] = -(elocal[0, :] - energy) * psideriv
 
