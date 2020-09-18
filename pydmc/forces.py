@@ -1,4 +1,5 @@
 import numpy as np
+import pprint as pp
 
 from pydmc.util import flatten, munu, velocity_cutoff_umrigar
 from pydmc.node_warp import *
@@ -255,10 +256,6 @@ class ForcesVMC:
         self._confs = []
         self._jacs = [[] for _ in range(num_geos+1)]
 
-        self._ds = [[] for _ in range(num_geos+1)]
-        self._dxs = [[] for _ in range(num_geos+1)]
-        self._elgrad = [[] for _ in range(num_geos+1)]
-
         self._cutoff = cutoff
 
     def accumulate_samples(self, conf, psi, hamiltonian, tau):
@@ -283,20 +280,9 @@ class ForcesVMC:
             xwarp, jac, j \
                 = node_warp(x, psival, psigrad, psisec_val, psisec_grad, cutoff=self._cutoff)
 
-            self._dxs[geo].append(xwarp - x)
-            self._elgrad[geo].append(gradient_fd(lambda x: (-0.5*hamiltonian(psi_sec, x)/psisec_val), x))
-
             psisec_val_warp = psi_sec(xwarp)
-            psisec_grad_warp = psi_sec.gradient(xwarp)
 
             self._jacs[geo].append(jac)
-
-            v = psisec_grad / psisec_val
-            vbar = velocity_cutoff_umrigar(v, tau)
-            ratio = np.linalg.norm(vbar)/np.linalg.norm(v)
-            vwarp = psisec_grad_warp/psisec_val_warp
-            vwarpbar = velocity_cutoff_umrigar(vwarp, tau)
-            ratio_warp = np.linalg.norm(vwarpbar)/np.linalg.norm(vwarp)
 
             self._local_es[geo].append(hamiltonian(psi_sec, x) / psisec_val)
             self._local_es_warp[geo].append(hamiltonian(psi_sec, xwarp) / psisec_val_warp)
@@ -317,10 +303,6 @@ class ForcesVMC:
         elocal_warp = np.array(self._local_es_warp)
         psis_warp = np.array(self._psis_warp)
 
-        ds = np.array(self._ds)
-        dxs = np.array(self._dxs)
-        elgrad = np.array(self._elgrad)
-
         jacs = np.array(self._jacs)
 
         energy = np.mean(elocal[0])
@@ -336,8 +318,7 @@ class ForcesVMC:
 
             #Compute Hellman-Feynman and Pulay force terms
             forcel_hf[i, :] = -elocal_deriv 
-            #forcel_hf_warp[i, :] = -elocal_deriv_warp
-            forcel_hf_warp[i, :] = -(elocal_deriv + elgrad[i] @ dxs/da)
+            forcel_hf_warp[i, :] = -elocal_deriv_warp
 
             forcel_pulay[i, :] = -(elocal[0, :] - energy) * psideriv
 
