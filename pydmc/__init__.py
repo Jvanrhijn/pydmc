@@ -7,3 +7,4 @@ from pydmc.wavefunction import *
 from pydmc.forces import *
 from pydmc.node_warp import *
 from pydmc.vmc import *
+from pydmc.output import *
