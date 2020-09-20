@@ -65,7 +65,8 @@ class DMC:
                                 self._hamiltonian, 
                                 self._reference_energy, 
                                 time_step,
-                                self._velocity_cutoff
+                                self._velocity_cutoff,
+                                len(self._walkers)
                             )
                 
                     if accumulator is not None:

@@ -136,8 +136,11 @@ class DMCForcesInput:
         num_lines = sum(1 for line in open(fpath))
         data = {}
         with open(fpath, "r") as file:
-            for line in tqdm.tqdm(file, total=num_lines):
+            for i, line in tqdm.tqdm(enumerate(file), total=num_lines):
                 # this makes me want to cry
+                if i == 0:
+                    self._num_walkers = int(line.split()[3])
+                    continue
                 ldata = eval(line)
                 if not data:
                     for key, value in ldata.items():
@@ -151,8 +154,17 @@ class DMCForcesInput:
 
     def compute_forces(self, fpath):
         data = self._retrieve_data(fpath)
-
+        num_walkers = self._num_walkers
         da = data["da"].flatten()
+        num_ensembles = len(da) // num_walkers
+
+        energy = np.average(data["Local energy"], weights=data["Weight"])
+
+        # split data into ensembles of walkers
+        for key, value in data.items():
+            data[key] = np.array_split(value, num_ensembles)
+
+        da = data["da"]
         local_energy = data["Local energy"]
         local_energy_sec = data["Local energy (secondary)"]
         local_energy_sec_warp = data["Local energy (secondary, warp)"]
@@ -164,7 +176,7 @@ class DMCForcesInput:
         ssec_warp = data["S partial sum (secondary, warp)"]
         tsec_warp = data["T partial sum (secondary, warp)"]
 
-        weight = data["Weight"]
+        weights = data["Weight"]
 
         psi = data["Psi"]
         psi_sec = data["Psi (secondary)"]
@@ -173,27 +185,41 @@ class DMCForcesInput:
         jac = data["Jacobian"]
         jac_partial_sum = data["Log Jacobian partial sum"]
 
-        # compute local e derivative
-        local_e_deriv = (local_energy_sec - local_energy) / da
-        local_e_deriv_warp = (local_energy_sec_warp - local_energy) / da
+        force_hf = np.zeros(num_ensembles)
+        force_hf_warp = np.zeros(num_ensembles)
+        force_pulay_exact = np.zeros(num_ensembles)
+        force_pulay_exact_warp = np.zeros(num_ensembles)
+        force_pulay_vd = np.zeros(num_ensembles)
+        force_pulay_vd_warp = np.zeros(num_ensembles)
 
-        force_hf = -local_e_deriv
-        force_hf_warp = -local_e_deriv_warp
+        for e in range(num_ensembles):
+            # compute local e derivative
+            local_e_deriv = (local_energy_sec[e] - local_energy[e]) / da[e]
+            local_e_deriv_warp = (local_energy_sec_warp[e] - local_energy[e]) / da[e]
 
-        # compute psi derivative
-        psilogderiv = (np.log(np.abs(psi_sec)) - np.log(np.abs(psi))) / da
-        psilogderiv_warp = (np.log(np.abs(psi_sec_warp)) - np.log(np.abs(psi))) / da
+            force_hf[e] = np.average(-local_e_deriv, weights=weights[e])
+            force_hf_warp[e] = np.average(-local_e_deriv_warp, weights=weights[e])
 
-        # Jacobian derivative
-        jac_deriv = np.log(np.abs(jac))/da
+            # compute psi derivative
+            psilogderiv = (np.log(np.abs(psi_sec[e])) - np.log(np.abs(psi[e]))) / da[e]
+            psilogderiv_warp = (np.log(np.abs(psi_sec_warp[e])) - np.log(np.abs(psi[e]))) / da[e]
 
-        # pulay force
-        energy = np.average(local_energy, weights=weight)
+            # Jacobian derivative
+            jac_deriv = np.log(np.abs(jac[e]))/da[e]
 
-        force_pulay_exact = -(local_energy - energy) * ((tsec - t)/da + (ssec - s)/da)
-        force_pulay_exact_warp = -(local_energy - energy) * ((tsec_warp - t)/da + (ssec_warp - s)/da + jac_partial_sum/da)
+            # pulay force
 
-        force_pulay_vd = -(local_energy - energy) * (2*psilogderiv + (ssec - s)/da)
-        force_pulay_vd_warp = -(local_energy - energy) * (2*psilogderiv_warp + (ssec_warp - s)/da + jac_deriv)
+            force_pulay_exact[e] = np.average(-(local_energy[e] - energy) * ((tsec[e] - t[e])/da[e] + (ssec[e] - s[e])/da[e]), weights=weights[e])
+            force_pulay_exact_warp[e] = np.average(-(local_energy[e] - energy) * ((tsec_warp[e] - t[e])/da[e] + (ssec_warp[e] - s[e])/da[e] + jac_partial_sum[e]/da[e]), weights=weights[e])
 
-        return force_hf, force_hf_warp, force_pulay_exact, force_pulay_exact_warp, force_pulay_vd, force_pulay_vd_warp, weight
+            force_pulay_vd[e] = np.average(-(local_energy[e] - energy) * (2*psilogderiv + (ssec[e] - s[e])/da[e]), weights=weights[e])
+            force_pulay_vd_warp[e] = np.average(-(local_energy[e] - energy) * (2*psilogderiv_warp + (ssec_warp[e] - s[e])/da[e] + jac_deriv), weights=weights[e])
+
+        return force_hf, \
+               force_hf_warp, \
+               force_pulay_exact, \
+               force_pulay_exact_warp, \
+               force_pulay_vd, \
+               force_pulay_vd_warp, \
+               weights 
+
