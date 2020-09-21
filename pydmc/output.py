@@ -76,24 +76,20 @@ class DMCLogger:
 
         psival = psi(x)
         psigrad = psi.gradient(x)
-        # TODO: cutoff
         v = psigrad / psival
 
         psival_prev = psi(xprev)
         psigrad_prev = psi.gradient(xprev)
-        # TODO: cutoff
         vprev = psigrad_prev / psival_prev
 
         psi_sec = psi.deform(self._da)
 
         psisec_val = psi_sec(x)
         psisec_grad = psi_sec.gradient(x)
-        # TODO: cutoff
         vsec = psisec_grad / psisec_val
 
         psisec_val_prev = psi_sec(xprev)
         psisec_grad_prev = psi_sec.gradient(xprev)
-        # TODO: cutoff
         vsec_prev = psisec_grad_prev / psisec_val_prev
 
         xwarp, jac, _ \
@@ -103,7 +99,6 @@ class DMCLogger:
 
         psisec_val_warp = psi_sec(xwarp)
         psisec_val_prev_warp = psi_sec(xprev_warp)
-        # TODO: cutoff
         vsec_warp_prev = psi_sec.gradient(xprev_warp) / psisec_val_prev_warp
         vsec_warp = psi_sec.gradient(xwarp) / psisec_val_warp
 
@@ -114,7 +109,6 @@ class DMCLogger:
         eloc_prev = hamiltonian(psi, xprev) / psi(xprev)
         eloc_prime_prev_warp = hamiltonian(psi_sec, xprev_warp) / psi_sec(xprev_warp)
 
-        # TODO: cutoff 
         vbar = velocity_cutoff(v, tau)
         s = (eref - 0.5 * (eloc_prev + eloc)) * tau \
             * np.linalg.norm(vbar)/np.linalg.norm(v)
