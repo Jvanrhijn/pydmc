@@ -159,8 +159,6 @@ class DMCForcesInput:
         energy = np.mean(data["Local energy"])
 
         local_energy = data["Local energy"]
-        local_energy_sec = data["Local energy (secondary)"]
-        local_energy_sec_warp = data["Local energy (secondary, warp)"]
 
         s = data["S"]
         t = data["T"]
@@ -170,25 +168,30 @@ class DMCForcesInput:
         tsec_warp = data["T (secondary, warp)"]
 
         psi = data["Psi"]
-        psi_sec = data["Psi (secondary)"]
-        psi_sec_warp = data["Psi (secondary, warp)"]
+        #psi_sec = data["Psi (secondary)"]
+        #psi_sec_warp = data["Psi (secondary, warp)"]
         
-        logjac = data["Log Jacobian"]
+        el_times_jac_logderiv = data["E_L * grad_a Log Jacobian"]
+        jac_logderiv = data["grad_a Log Jacobian"]
         jac_partial_sum = data["Sum Log Jacobian"]
 
         # compute local e derivative
-        local_e_deriv = (local_energy_sec - local_energy) / da
-        local_e_deriv_warp = (local_energy_sec_warp - local_energy) / da
+        #local_e_deriv = (local_energy_sec - local_energy) / da
+        local_e_deriv = data["grad_a E_L"]
+        #local_e_deriv_warp = (local_energy_sec_warp - local_energy) / da
+        local_e_deriv_warp = data["grad_a E_L (warp)"]
 
         force_hf = (-local_e_deriv)
         force_hf_warp = (-local_e_deriv_warp)
 
         # compute psi derivative
-        psilogderiv = (np.log(np.abs(psi_sec)) - np.log(np.abs(psi))) / da
-        psilogderiv_warp = (np.log(np.abs(psi_sec_warp)) - np.log(np.abs(psi))) / da
+        #psilogderiv = (np.log(np.abs(psi_sec)) - np.log(np.abs(psi))) / da
+        #psilogderiv_warp = (np.log(np.abs(psi_sec_warp)) - np.log(np.abs(psi))) / da
+        psilogderiv = data["grad_a Log Psi"]
+        psilogderiv_warp = data["grad_a Log Psi (warp)"]
 
-        # Jacobian derivative
-        jac_deriv = logjac/da
+        el_times_psilogderiv = data["E_L * grad_a Log Psi"]
+        el_times_psilogderiv_warp = data["E_L * grad_a Log Psi (warp)"]
 
         # pulay force
         force_pulay_exact = (-(local_energy - energy) \
@@ -197,11 +200,16 @@ class DMCForcesInput:
         force_pulay_exact_warp = (-(local_energy - energy) \
             * ((tsec_warp - t)/da + (ssec_warp - s)/da + jac_partial_sum/da))
 
-        force_pulay_vd = (-(local_energy - energy) \
-            * (2*psilogderiv + (ssec - s)/da))
+        #force_pulay_vd = -(local_energy - energy) \
+        #    * (2*psilogderiv + (ssec - s)/da)
+        force_pulay_vd = -((local_energy - energy) * (ssec - s)/da \
+            + 2 * (el_times_psilogderiv - energy*psilogderiv))
 
-        force_pulay_vd_warp = (-(local_energy - energy) \
-            * (2*psilogderiv_warp + (ssec_warp - s)/da + jac_deriv))
+        #force_pulay_vd_warp = (-(local_energy - energy) \
+        #    * (2*psilogderiv_warp + (ssec_warp - s)/da + jac_deriv))
+        force_pulay_vd_warp = -((local_energy - energy) * (ssec_warp - s)/da \
+            + el_times_jac_logderiv - energy * jac_logderiv \
+            + 2 * (el_times_psilogderiv_warp - energy*psilogderiv_warp))
 
         return force_hf, \
                force_hf_warp, \

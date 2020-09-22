@@ -68,15 +68,21 @@ class DMCLogger:
         self._ensemble_data = {
                 "Weight": [],
                 "Psi": [],
-                "Gradpsi": [],
                 "Psi (secondary)": [],
-                "Gradpsi (secondary)": [],
                 "Log Jacobian": [],
                 "Sum Log Jacobian": [],
                 "Psi (secondary, warp)": [],
                 "Local energy": [],
                 "Local energy (secondary)": [],
                 "Local energy (secondary, warp)": [],
+                "grad_a E_L": [],
+                "grad_a E_L (warp)": [],
+                "grad_a Log Psi": [],
+                "grad_a Log Psi (warp)": [],
+                "grad_a Log Jacobian": [],
+                "E_L * grad_a Log Jacobian": [],
+                "E_L * grad_a Log Psi": [],
+                "E_L * grad_a Log Psi (warp)": [],
                 "S": [],
                 "T": [],
                 "S (secondary)": [],
@@ -176,9 +182,6 @@ class DMCLogger:
         self._ensemble_data["Psi (secondary)"].append(psisec_val)
         self._ensemble_data["Psi (secondary, warp)"].append(psisec_val_warp)
 
-        self._ensemble_data["Gradpsi"].append(psigrad)
-        self._ensemble_data["Gradpsi (secondary)"].append(psisec_grad)
-
         self._ensemble_data["Log Jacobian"].append(math.log(abs(jac)))
         self._ensemble_data["Sum Log Jacobian"].append(math.log(abs(jac)))
 
@@ -193,14 +196,23 @@ class DMCLogger:
         self._ensemble_data["S (secondary, warp)"].append(ssec_warp)
         self._ensemble_data["T (secondary, warp)"].append(tsec_warp)
 
-        #self._outfile.write(str(outdict) + "\n")
+        self._ensemble_data["grad_a E_L"].append((eloc_prime - eloc) / self._da)
+        self._ensemble_data["grad_a E_L (warp)"].append((eloc_prime_warp - eloc) / self._da)
+
+        self._ensemble_data["grad_a Log Psi"].append((math.log(abs(psisec_val)) - math.log(abs(psival))) / self._da)
+        self._ensemble_data["grad_a Log Psi (warp)"].append((math.log(abs(psisec_val_warp)) - math.log(abs(psival))) / self._da)
+
+        self._ensemble_data["E_L * grad_a Log Psi"].append(eloc * (math.log(abs(psisec_val)) - math.log(abs(psival))) / self._da)
+        self._ensemble_data["E_L * grad_a Log Psi (warp)"].append(eloc * (math.log(abs(psisec_val_warp)) - math.log(abs(psival))) / self._da)
+
+        self._ensemble_data["grad_a Log Jacobian"].append(math.log(abs(jac)) / self._da)
+        self._ensemble_data["E_L * grad_a Log Jacobian"].append(eloc * math.log(abs(jac)) / self._da)
 
     def output(self):
         weights = np.array(self._ensemble_data["Weight"])
         # average all collected data over the ensemble
         for key, value in self._ensemble_data.items():
             self._ensemble_data[key] = np.average(value, weights=weights, axis=0)
-            #self._ensemble_data[key] = np.mean(value)
 
         # for S, T and J: save a partial history of ensemble averages
         for key in self._histories:
