@@ -65,9 +65,39 @@ class DMCLogger:
 
         self._counter = 0
 
+        self._ensemble_data = {
+                "Weight": [],
+                "Psi": [],
+                "Gradpsi": [],
+                "Psi (secondary)": [],
+                "Gradpsi (secondary)": [],
+                "Log Jacobian": [],
+                "Sum Log Jacobian": [],
+                "Psi (secondary, warp)": [],
+                "Local energy": [],
+                "Local energy (secondary)": [],
+                "Local energy (secondary, warp)": [],
+                "S": [],
+                "T": [],
+                "S (secondary)": [],
+                "T (secondary)": [],
+                "S (secondary, warp)": [],
+                "T (secondary, warp)": [],
+        }
+
+        self._histories = {
+                "S": deque(maxlen=lag),
+                "T": deque(maxlen=lag),
+                "S (secondary)": deque(maxlen=lag),
+                "T (secondary)": deque(maxlen=lag),
+                "S (secondary, warp)": deque(maxlen=lag),
+                "T (secondary, warp)": deque(maxlen=lag),
+                "Sum Log Jacobian": deque(maxlen=lag),
+        }
+
     def accumulate_samples(self, iwalker, walker, psi, hamiltonian, eref, tau, velocity_cutoff, num_walkers):
         if self._counter == 0:
-            self._outfile.write(f"Number of walkers: {num_walkers} | Time step: {tau}\n")
+            self._outfile.write(f"Number of walkers: {num_walkers} | Time step: {tau} | da: {self._da}\n")
         self._counter += 1
 
         x = walker.configuration
@@ -139,26 +169,47 @@ class DMCLogger:
         self._tsec_warp_history.append(tsec_warp)
         self._jac_history.append(math.log(abs(jac)))
 
-        outdict = {
-                "Configuration": x,
-                "Weight": weight,
-                "Psi": psival,
-                "Gradpsi": psigrad,
-                "Psi (secondary)": psisec_val,
-                "Gradpsi (secondary)": psisec_grad,
-                "Jacobian": jac,
-                "Psi (secondary, warp)": psisec_val_warp,
-                "Local energy": eloc,
-                "Local energy (secondary)": eloc_prime,
-                "Local energy (secondary, warp)": eloc_prime_warp,
-                "da": self._da,
-                "S partial sum": sum(self._s_history),
-                "T partial sum": sum(self._t_history),
-                "S partial sum (secondary)": sum(self._ssec_history),
-                "T partial sum (secondary)": sum(self._tsec_history),
-                "S partial sum (secondary, warp)": sum(self._ssec_warp_history),
-                "T partial sum (secondary, warp)": sum(self._tsec_warp_history),
-                "Log Jacobian partial sum": sum(self._jac_history),
-        }
+        #outdict = {
+        self._ensemble_data["Weight"].append(weight)
 
-        self._outfile.write(str(outdict) + "\n")
+        self._ensemble_data["Psi"].append(psival)
+        self._ensemble_data["Psi (secondary)"].append(psisec_val)
+        self._ensemble_data["Psi (secondary, warp)"].append(psisec_val_warp)
+
+        self._ensemble_data["Gradpsi"].append(psigrad)
+        self._ensemble_data["Gradpsi (secondary)"].append(psisec_grad)
+
+        self._ensemble_data["Log Jacobian"].append(math.log(abs(jac)))
+        self._ensemble_data["Sum Log Jacobian"].append(math.log(abs(jac)))
+
+        self._ensemble_data["Local energy"].append(eloc)
+        self._ensemble_data["Local energy (secondary)"].append(eloc_prime)
+        self._ensemble_data["Local energy (secondary, warp)"].append(eloc_prime_warp)
+
+        self._ensemble_data["S"].append(s)
+        self._ensemble_data["T"].append(t) 
+        self._ensemble_data["S (secondary)"].append(ssec)
+        self._ensemble_data["T (secondary)"].append(tsec)
+        self._ensemble_data["S (secondary, warp)"].append(ssec_warp)
+        self._ensemble_data["T (secondary, warp)"].append(tsec_warp)
+
+        #self._outfile.write(str(outdict) + "\n")
+
+    def output(self):
+        weights = np.array(self._ensemble_data["Weight"])
+        # average all collected data over the ensemble
+        for key, value in self._ensemble_data.items():
+            self._ensemble_data[key] = np.average(value, weights=weights, axis=0)
+            #self._ensemble_data[key] = np.mean(value)
+
+        # for S, T and J: save a partial history of ensemble averages
+        for key in self._histories:
+            self._histories[key].append(self._ensemble_data[key])
+            # calculate the sum of the history for output
+            self._ensemble_data[key] = sum(self._histories[key])
+
+        self._outfile.write(str(self._ensemble_data) + "\n")
+
+        # reset the ensemble data for the next run
+        for key in self._ensemble_data:
+            self._ensemble_data[key] = []

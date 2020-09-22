@@ -30,7 +30,7 @@ class DMC:
         self.force_accumulators = force_accumulators
         self._velocity_cutoff = velocity_cutoff
 
-    def run_dmc(self, time_step, num_blocks, steps_per_block, accumulator=None, neq=1, progress=True, verbose=False):
+    def run_dmc(self, time_step, num_blocks, steps_per_block, neq=1, progress=True, verbose=False):
         start_time = datetime.now()
 
         if progress and verbose:
@@ -57,6 +57,7 @@ class DMC:
                     total_weight += walker.weight
 
                     if self.force_accumulators is not None and b >= neq:
+                        # accumulate samples over an ensemble
                         for fa in self.force_accumulators:
                             fa.accumulate_samples(
                                 iwalker,
@@ -68,10 +69,10 @@ class DMC:
                                 self._velocity_cutoff,
                                 len(self._walkers)
                             )
-                
-                    if accumulator is not None:
-                        accumulator.sample_observables(self._guiding_wf, walker)
-                        accumulator.ref_energy.append(walker.weight*self._reference_energy)
+
+                if self.force_accumulators is not None and b >= neq:
+                    for fa in self.force_accumulators:
+                        fa.output()
 
                 ensemble_energy /= total_weight
                 block_energies[i] = ensemble_energy
@@ -97,8 +98,6 @@ class DMC:
             if b >= neq:
                 self.update_energy_estimate(block_average_energy)
                 self._reference_energy = (self._reference_energy + self._energy_cumulative[-1]) / 2
-
-        return accumulator
 
     def _update_walker(self, walker, time_step):
         xold = copy.deepcopy(walker.configuration)
