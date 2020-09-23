@@ -160,8 +160,8 @@ class DMCForcesInput:
         # Get Green's function derivatives
         sderiv_sum = data["grad_a S"]        
         sderiv_sum_warp = data["grad_a S (warp)"]        
-        tderiv_sum = data["grad_a T"]        
-        tderiv_sum_warp = data["grad_a T (warp)"]        
+        tderiv_sum = data["grad_a T (no cutoff)"]        
+        tderiv_sum_warp = data["grad_a T (warp, no cutoff)"]        
 
         # Get Jacobian (sum) derivative
         jderiv_sum = data["grad_a sum Log Jacobian"]
@@ -170,8 +170,8 @@ class DMCForcesInput:
         # Get products of E_L and Green's function derivatives
         el_times_sderiv_sum = data["E_L * grad_a S"]        
         el_times_sderiv_sum_warp = data["E_L * grad_a S (warp)"]        
-        el_times_tderiv_sum = data["E_L * grad_a T"]        
-        el_times_tderiv_sum_warp = data["E_L * grad_a T (warp)"]        
+        el_times_tderiv_sum = data["E_L * grad_a T (no cutoff)"]        
+        el_times_tderiv_sum_warp = data["E_L * grad_a T (warp, no cutoff)"]        
 
         # Get product of E_L and Jacobian (sum) derivative
         el_times_jderiv_sum = data["E_L * grad_a sum Log Jacobian"]
