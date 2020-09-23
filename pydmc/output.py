@@ -72,11 +72,19 @@ class DMCLogger:
                 "grad_a T": [],
                 "grad_a S (warp)": [],
                 "grad_a T (warp)": [],
+                "grad_a S (no cutoff)": [],
+                "grad_a T (no cutoff)": [],
+                "grad_a S (warp, no cutoff)": [],
+                "grad_a T (warp, no cutoff)": [],
                 "grad_a Log Jacobian": [],
                 "E_L * grad_a S": [],
                 "E_L * grad_a S (warp)": [],
                 "E_L * grad_a T": [],
                 "E_L * grad_a T (warp)": [],
+                "E_L * grad_a S (no cutoff)": [],
+                "E_L * grad_a T (no cutoff)": [],
+                "E_L * grad_a S (warp, no cutoff)": [],
+                "E_L * grad_a T (warp, no cutoff)": [],
                 "E_L * grad_a sum Log Jacobian": [],
         }
 
@@ -85,6 +93,10 @@ class DMCLogger:
                 "grad_a T": [deque(maxlen=lag) for _ in range(nwalkers)],
                 "grad_a S (warp)": [deque(maxlen=lag) for _ in range(nwalkers)],
                 "grad_a T (warp)": [deque(maxlen=lag) for _ in range(nwalkers)],
+                "grad_a S (no cutoff)": [deque(maxlen=lag) for _ in range(nwalkers)],
+                "grad_a T (no cutoff)": [deque(maxlen=lag) for _ in range(nwalkers)],
+                "grad_a S (warp, no cutoff)": [deque(maxlen=lag) for _ in range(nwalkers)],
+                "grad_a T (warp, no cutoff)": [deque(maxlen=lag) for _ in range(nwalkers)],
                 "grad_a sum Log Jacobian": [deque(maxlen=lag) for _ in range(nwalkers)],
         }
 
@@ -132,6 +144,10 @@ class DMCLogger:
         eloc_prev = hamiltonian(psi, xprev) / psi(xprev)
         eloc_prime_prev_warp = hamiltonian(psi_sec, xprev_warp) / psi_sec(xprev_warp)
 
+        snocutoff = (eref - 0.5 * (eloc_prev + eloc)) * tau
+        ssecnocutoff = (eref - 0.5 * (eloc_prime + eloc_prime_prev))
+        ssecnocutoff_warp = (eref - 0.5 * (eloc_prime_warp + eloc_prime_prev_warp)) * tau
+
         vbar = velocity_cutoff(v, tau)
         s = (eref - 0.5 * (eloc_prev + eloc)) * tau \
             * np.linalg.norm(vbar)/np.linalg.norm(v)
@@ -148,11 +164,18 @@ class DMCLogger:
             t = 0
             tsec = 0
             tsec_warp = 0
+
+            tnocutoff = 0
+            tsecnocutoff = 0
+            tsecnocutoff_warp = 0
         else:        
             t = -np.linalg.norm(x - xprev - velocity_cutoff(vprev, tau)*tau)**2 / (2*tau)
             tsec = -np.linalg.norm(x - xprev - velocity_cutoff(vsec_prev, tau)*tau)**2 / (2*tau)
             tsec_warp = -np.linalg.norm(xwarp - xprev_warp - velocity_cutoff(vsec_warp_prev, tau)*tau)**2 / (2*tau)
 
+            tnocutoff = -np.linalg.norm(x - xprev - vprev*tau)**2 / (2*tau)
+            tsecnocutoff = -np.linalg.norm(x - xprev - vsec_prev*tau)**2 / (2*tau)
+            tsecnocutoff_warp = -np.linalg.norm(xwarp - xprev_warp - vsec_warp_prev*tau)**2 / (2*tau)
 
         self._ensemble_data["Weight"].append(weight)
 
@@ -165,6 +188,12 @@ class DMCLogger:
 
         self._ensemble_data["grad_a S (warp)"].append((ssec_warp - s) / self._da)
         self._ensemble_data["grad_a T (warp)"].append((tsec_warp - t) / self._da)
+
+        self._ensemble_data["grad_a S (no cutoff)"].append((ssecnocutoff - snocutoff) / self._da)
+        self._ensemble_data["grad_a T (no cutoff)"].append((tsecnocutoff - tnocutoff) / self._da)
+
+        self._ensemble_data["grad_a S (warp, no cutoff)"].append((ssecnocutoff_warp - snocutoff) / self._da)
+        self._ensemble_data["grad_a T (warp, no cutoff)"].append((tsecnocutoff_warp - tnocutoff) / self._da)
 
         self._ensemble_data["grad_a sum Log Jacobian"].append(math.log(abs(jac))/ self._da) 
         self._ensemble_data["grad_a E_L"].append((eloc_prime - eloc) / self._da)
