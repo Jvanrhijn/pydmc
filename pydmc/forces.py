@@ -140,7 +140,6 @@ class DMCForcesInput:
                 # this makes me want to cry
                 if i == 0:
                     self._num_walkers = int(line.split()[3])
-                    self._da = float(line.split()[-1])
                     continue
                 ldata = eval(line)
                 if not data:
@@ -155,61 +154,65 @@ class DMCForcesInput:
 
     def compute_forces(self, fpath):
         data = self._retrieve_data(fpath)
-        da = self._da
         energy = np.mean(data["Local energy"])
 
-        local_energy = data["Local energy"]
+        # Get Green's function derivatives
+        sderiv_sum = data["grad_a S"]        
+        sderiv_sum_warp = data["grad_a S (warp)"]        
+        tderiv_sum = data["grad_a T"]        
+        tderiv_sum_warp = data["grad_a T (warp)"]        
 
-        s = data["S"]
-        t = data["T"]
-        ssec = data["S (secondary)"]
-        tsec = data["T (secondary)"]
-        ssec_warp = data["S (secondary, warp)"]
-        tsec_warp = data["T (secondary, warp)"]
-
-        psi = data["Psi"]
-        #psi_sec = data["Psi (secondary)"]
-        #psi_sec_warp = data["Psi (secondary, warp)"]
-        
-        el_times_jac_logderiv = data["E_L * grad_a Log Jacobian"]
+        # Get Jacobian (sum) derivative
+        jderiv_sum = data["grad_a sum Log Jacobian"]
         jac_logderiv = data["grad_a Log Jacobian"]
-        jac_partial_sum = data["Sum Log Jacobian"]
 
-        # compute local e derivative
-        #local_e_deriv = (local_energy_sec - local_energy) / da
+        # Get products of E_L and Green's function derivatives
+        el_times_sderiv_sum = data["E_L * grad_a S"]        
+        el_times_sderiv_sum_warp = data["E_L * grad_a S (warp)"]        
+        el_times_tderiv_sum = data["E_L * grad_a T"]        
+        el_times_tderiv_sum_warp = data["E_L * grad_a T (warp)"]        
+
+        # Get product of E_L and Jacobian (sum) derivative
+        el_times_jderiv_sum = data["E_L * grad_a sum Log Jacobian"]
+        el_times_jac_logderiv = data["E_L * grad_a Log Jacobian"]
+
+        # Get local e derivative
         local_e_deriv = data["grad_a E_L"]
-        #local_e_deriv_warp = (local_energy_sec_warp - local_energy) / da
         local_e_deriv_warp = data["grad_a E_L (warp)"]
 
-        force_hf = (-local_e_deriv)
-        force_hf_warp = (-local_e_deriv_warp)
-
-        # compute psi derivative
-        #psilogderiv = (np.log(np.abs(psi_sec)) - np.log(np.abs(psi))) / da
-        #psilogderiv_warp = (np.log(np.abs(psi_sec_warp)) - np.log(np.abs(psi))) / da
+        # Get psi derivative
         psilogderiv = data["grad_a Log Psi"]
         psilogderiv_warp = data["grad_a Log Psi (warp)"]
 
         el_times_psilogderiv = data["E_L * grad_a Log Psi"]
         el_times_psilogderiv_warp = data["E_L * grad_a Log Psi (warp)"]
 
-        # pulay force
-        force_pulay_exact = (-(local_energy - energy) \
-            * ((tsec - t)/da + (ssec - s)/da))
+        # Hellmann-Feynman force
+        force_hf = -local_e_deriv
+        force_hf_warp = -local_e_deriv_warp
 
-        force_pulay_exact_warp = (-(local_energy - energy) \
-            * ((tsec_warp - t)/da + (ssec_warp - s)/da + jac_partial_sum/da))
+        # Pulay force
+        force_pulay_exact = -(
+                    el_times_tderiv_sum - energy*tderiv_sum \
+                +   el_times_sderiv_sum - energy*sderiv_sum \
+                )
 
-        #force_pulay_vd = -(local_energy - energy) \
-        #    * (2*psilogderiv + (ssec - s)/da)
-        force_pulay_vd = -((local_energy - energy) * (ssec - s)/da \
-            + 2 * (el_times_psilogderiv - energy*psilogderiv))
+        force_pulay_exact_warp = -(
+                    el_times_tderiv_sum_warp - energy*tderiv_sum_warp \
+                +   el_times_sderiv_sum_warp - energy*sderiv_sum_warp \
+                +   el_times_jderiv_sum - energy*jderiv_sum \
+                )
 
-        #force_pulay_vd_warp = (-(local_energy - energy) \
-        #    * (2*psilogderiv_warp + (ssec_warp - s)/da + jac_deriv))
-        force_pulay_vd_warp = -((local_energy - energy) * (ssec_warp - s)/da \
-            + el_times_jac_logderiv - energy * jac_logderiv \
-            + 2 * (el_times_psilogderiv_warp - energy*psilogderiv_warp))
+        force_pulay_vd = -(
+                2 * (el_times_psilogderiv - energy*psilogderiv) \
+                +    el_times_sderiv_sum - energy*sderiv_sum
+                )
+
+        force_pulay_vd_warp = -(
+                2 * (el_times_psilogderiv_warp - energy*psilogderiv_warp) \
+                +    el_times_sderiv_sum_warp - energy*sderiv_sum_warp \
+                +    el_times_jac_logderiv - energy * jac_logderiv \
+                )
 
         return force_hf, \
                force_hf_warp, \

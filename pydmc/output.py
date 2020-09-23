@@ -1,7 +1,7 @@
 from datetime import datetime
 from pydmc.node_warp import *
 from collections import deque
-
+import pprint
 
 class VMCLogger:
 
@@ -49,61 +49,48 @@ class VMCLogger:
 
 class DMCLogger:
 
-    def __init__(self, da, outfile, lag, cutoff=lambda d: (0, 0, 0)):
+    def __init__(self, da, outfile, lag, nwalkers, cutoff=lambda d: (0, 0, 0)):
         self._da = da
         self._cutoff = cutoff
         self._outfile = open(outfile, "w")
         self._start_time = datetime.now()
-
-        self._s_history = deque(maxlen=lag)
-        self._t_history = deque(maxlen=lag)
-        self._ssec_history = deque(maxlen=lag)
-        self._tsec_history = deque(maxlen=lag)
-        self._ssec_warp_history = deque(maxlen=lag)
-        self._tsec_warp_history = deque(maxlen=lag)
-        self._jac_history = deque(maxlen=lag)
-
         self._counter = 0
 
         self._ensemble_data = {
                 "Weight": [],
                 "Psi": [],
-                "Psi (secondary)": [],
-                "Log Jacobian": [],
-                "Sum Log Jacobian": [],
-                "Psi (secondary, warp)": [],
                 "Local energy": [],
-                "Local energy (secondary)": [],
-                "Local energy (secondary, warp)": [],
                 "grad_a E_L": [],
                 "grad_a E_L (warp)": [],
                 "grad_a Log Psi": [],
                 "grad_a Log Psi (warp)": [],
-                "grad_a Log Jacobian": [],
+                "grad_a sum Log Jacobian": [],
                 "E_L * grad_a Log Jacobian": [],
                 "E_L * grad_a Log Psi": [],
                 "E_L * grad_a Log Psi (warp)": [],
-                "S": [],
-                "T": [],
-                "S (secondary)": [],
-                "T (secondary)": [],
-                "S (secondary, warp)": [],
-                "T (secondary, warp)": [],
+                "grad_a S": [],
+                "grad_a T": [],
+                "grad_a S (warp)": [],
+                "grad_a T (warp)": [],
+                "grad_a Log Jacobian": [],
+                "E_L * grad_a S": [],
+                "E_L * grad_a S (warp)": [],
+                "E_L * grad_a T": [],
+                "E_L * grad_a T (warp)": [],
+                "E_L * grad_a sum Log Jacobian": [],
         }
 
         self._histories = {
-                "S": deque(maxlen=lag),
-                "T": deque(maxlen=lag),
-                "S (secondary)": deque(maxlen=lag),
-                "T (secondary)": deque(maxlen=lag),
-                "S (secondary, warp)": deque(maxlen=lag),
-                "T (secondary, warp)": deque(maxlen=lag),
-                "Sum Log Jacobian": deque(maxlen=lag),
+                "grad_a S": [deque(maxlen=lag) for _ in range(nwalkers)],
+                "grad_a T": [deque(maxlen=lag) for _ in range(nwalkers)],
+                "grad_a S (warp)": [deque(maxlen=lag) for _ in range(nwalkers)],
+                "grad_a T (warp)": [deque(maxlen=lag) for _ in range(nwalkers)],
+                "grad_a sum Log Jacobian": [deque(maxlen=lag) for _ in range(nwalkers)],
         }
 
     def accumulate_samples(self, iwalker, walker, psi, hamiltonian, eref, tau, velocity_cutoff, num_walkers):
         if self._counter == 0:
-            self._outfile.write(f"Number of walkers: {num_walkers} | Time step: {tau} | da: {self._da}\n")
+            self._outfile.write(f"Number of walkers: {num_walkers} | Time step: {tau}\n")
         self._counter += 1
 
         x = walker.configuration
@@ -166,36 +153,20 @@ class DMCLogger:
             tsec = -np.linalg.norm(x - xprev - velocity_cutoff(vsec_prev, tau)*tau)**2 / (2*tau)
             tsec_warp = -np.linalg.norm(xwarp - xprev_warp - velocity_cutoff(vsec_warp_prev, tau)*tau)**2 / (2*tau)
 
-        # increment the partial sums of t and s
-        self._s_history.append(s)
-        self._t_history.append(t)
-        self._ssec_history.append(ssec)
-        self._tsec_history.append(tsec)
-        self._ssec_warp_history.append(ssec_warp)
-        self._tsec_warp_history.append(tsec_warp)
-        self._jac_history.append(math.log(abs(jac)))
 
-        #outdict = {
         self._ensemble_data["Weight"].append(weight)
 
         self._ensemble_data["Psi"].append(psival)
-        self._ensemble_data["Psi (secondary)"].append(psisec_val)
-        self._ensemble_data["Psi (secondary, warp)"].append(psisec_val_warp)
-
-        self._ensemble_data["Log Jacobian"].append(math.log(abs(jac)))
-        self._ensemble_data["Sum Log Jacobian"].append(math.log(abs(jac)))
 
         self._ensemble_data["Local energy"].append(eloc)
-        self._ensemble_data["Local energy (secondary)"].append(eloc_prime)
-        self._ensemble_data["Local energy (secondary, warp)"].append(eloc_prime_warp)
 
-        self._ensemble_data["S"].append(s)
-        self._ensemble_data["T"].append(t) 
-        self._ensemble_data["S (secondary)"].append(ssec)
-        self._ensemble_data["T (secondary)"].append(tsec)
-        self._ensemble_data["S (secondary, warp)"].append(ssec_warp)
-        self._ensemble_data["T (secondary, warp)"].append(tsec_warp)
+        self._ensemble_data["grad_a S"].append((ssec - s) / self._da)
+        self._ensemble_data["grad_a T"].append((tsec - t) / self._da)
 
+        self._ensemble_data["grad_a S (warp)"].append((ssec_warp - s) / self._da)
+        self._ensemble_data["grad_a T (warp)"].append((tsec_warp - t) / self._da)
+
+        self._ensemble_data["grad_a sum Log Jacobian"].append(math.log(abs(jac))/ self._da) 
         self._ensemble_data["grad_a E_L"].append((eloc_prime - eloc) / self._da)
         self._ensemble_data["grad_a E_L (warp)"].append((eloc_prime_warp - eloc) / self._da)
 
@@ -210,16 +181,22 @@ class DMCLogger:
 
     def output(self):
         weights = np.array(self._ensemble_data["Weight"])
-        # average all collected data over the ensemble
-        for key, value in self._ensemble_data.items():
-            self._ensemble_data[key] = np.average(value, weights=weights, axis=0)
 
         # for S, T and J: save a partial history of ensemble averages
         for key in self._histories:
-            self._histories[key].append(self._ensemble_data[key])
-            # calculate the sum of the history for output
-            self._ensemble_data[key] = sum(self._histories[key])
+            # push the new data into the queue for each walker
+            for iwalker in range(len(self._ensemble_data[key])):
+                self._histories[key][iwalker].append(self._ensemble_data[key][iwalker])
+                # sum over the history
+                self._ensemble_data[key][iwalker] = sum(self._histories[key][iwalker])
+                # compute E_L * sum over history
+                eloc = self._ensemble_data["Local energy"][iwalker]
+                self._ensemble_data["E_L * " + key].append(eloc * self._ensemble_data[key][iwalker])
 
+        # average all collected data over the ensemble of walkers
+        for key, value in self._ensemble_data.items():
+            self._ensemble_data[key] = np.average(value, weights=weights)
+            
         self._outfile.write(str(self._ensemble_data) + "\n")
 
         # reset the ensemble data for the next run
