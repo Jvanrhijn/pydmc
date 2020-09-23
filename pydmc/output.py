@@ -55,6 +55,7 @@ class DMCLogger:
         self._outfile = open(outfile, "w")
         self._start_time = datetime.now()
         self._counter = 0
+        self._steps_per_block = lag
 
         self._ensemble_data = {
                 "Weight": [],
@@ -102,7 +103,7 @@ class DMCLogger:
 
     def accumulate_samples(self, iwalker, walker, psi, hamiltonian, eref, tau, velocity_cutoff, num_walkers):
         if self._counter == 0:
-            self._outfile.write(f"Number of walkers: {num_walkers} | Time step: {tau}\n")
+            self._outfile.write(f"Number of walkers: {num_walkers} | Time step: {tau} | Steps per block: {self._steps_per_block}\n")
         self._counter += 1
 
         x = walker.configuration

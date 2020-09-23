@@ -140,6 +140,7 @@ class DMCForcesInput:
                 # this makes me want to cry
                 if i == 0:
                     self._num_walkers = int(line.split()[3])
+                    self._steps_per_block = int(line.split()[-1])
                     continue
                 ldata = eval(line)
                 if not data:
@@ -219,5 +220,6 @@ class DMCForcesInput:
                force_pulay_exact, \
                force_pulay_exact_warp, \
                force_pulay_vd, \
-               force_pulay_vd_warp \
+               force_pulay_vd_warp, \
+               self._steps_per_block
 
