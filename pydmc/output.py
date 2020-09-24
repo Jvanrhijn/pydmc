@@ -21,14 +21,20 @@ class VMCLogger:
         psisec_val = psi_sec(x)
         psisec_grad = psi_sec.gradient(x)
 
+        d = node_distance(psigrad, psival)
+
         xwarp, jac, j \
             = node_warp(x, psival, psigrad, psisec_val, psisec_grad, cutoff=self._cutoff)
+        
+        _, jac_fd, _ = node_warp_fd(x, psi, psi_sec)
 
         psisec_val_warp = psi_sec(xwarp)
         
         eloc = hamiltonian(psi, x) / psival
         eloc_prime = hamiltonian(psi_sec, x) / psisec_val
         eloc_prime_warp = hamiltonian(psi_sec, xwarp) / psisec_val_warp
+
+        eps = 1e-1
 
         outdict = {
                 "Configuration": x,
@@ -37,10 +43,12 @@ class VMCLogger:
                 "Psi (secondary)": psisec_val,
                 "Gradpsi (secondary)": psisec_grad,
                 "Jacobian": jac,
+                "Jacobian (FD)": jac_fd,
                 "Psi (secondary, warp)": psisec_val_warp,
                 "Local energy": eloc,
                 "Local energy (secondary)": eloc_prime,
                 "Local energy (secondary, warp)": eloc_prime_warp,
+                "Pathak regularizer": 7*(d/eps)**6 - 15*(d/eps)**4 + 9*(d/eps)**2 if (d/eps) < 1 else 1.0,
                 "da": self._da
         }
 
@@ -110,12 +118,13 @@ class DMCLogger:
         xprev = walker.previous_configuration
         weight = walker.weight 
 
-        psival = psi(x)
-        psigrad = psi.gradient(x)
+        psival = walker.value
+        psigrad = walker.gradient
         v = psigrad / psival
 
-        psival_prev = psi(xprev)
-        psigrad_prev = psi.gradient(xprev)
+
+        psival_prev = walker.previous_value
+        psigrad_prev = walker.previous_gradient
         vprev = psigrad_prev / psival_prev
 
         psi_sec = psi.deform(self._da)

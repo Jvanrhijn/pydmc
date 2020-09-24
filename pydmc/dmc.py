@@ -17,18 +17,29 @@ class DMC:
 
     def __init__(self, hamiltonian, walkers, brancher, ar, guiding_wf, reference_energy, force_accumulators=None, seed=1, velocity_cutoff=lambda v, tau: v):
         self._hamiltonian = hamiltonian
+
         self._walkers = walkers
+
         self._brancher = brancher
         self._ar = ar
         self._guiding_wf = guiding_wf
+        self._initialize_walkers()
+
         self._reference_energy = reference_energy
         self._energy_all = []
         self._energy_cumulative = [reference_energy]
         self._variance = [0.0]
         self._confs = []
         self._error = [0.0]
+
         self.force_accumulators = force_accumulators
         self._velocity_cutoff = velocity_cutoff
+
+    def _initialize_walkers(self):
+        for walker in self._walkers:
+            x = walker.configuration
+            walker.value = self._guiding_wf(x)
+            walker.gradient = self._guiding_wf.gradient(x)
 
     def run_dmc(self, time_step, num_blocks, steps_per_block, neq=1, progress=True, verbose=False):
         start_time = datetime.now()
@@ -82,7 +93,7 @@ class DMC:
                 if b < neq:
                     self._reference_energy = 0.5 * (self._reference_energy + ensemble_energy)
 
-                self._brancher.perform_branching(self._walkers)
+            self._brancher.perform_branching(self._walkers)
 
             block_average_energy = np.mean(block_energies)
 
@@ -100,29 +111,30 @@ class DMC:
                 self._reference_energy = (self._reference_energy + self._energy_cumulative[-1]) / 2
 
     def _update_walker(self, walker, time_step):
-        xold = copy.deepcopy(walker.configuration)
-        wf_value_old = self._guiding_wf(xold)
+        xold = walker.configuration
 
         # compute "old" local energy
-        local_energy_old = self._hamiltonian(self._guiding_wf, xold) / wf_value_old
+        local_energy_old = self._hamiltonian(self._guiding_wf, xold) / walker.value
 
         # perform accept/reject step
-        accepted, acceptance_prob, xnew = self._ar.move_state(self._guiding_wf, xold, time_step)
+        walker = self._ar.move_state(self._guiding_wf, time_step, walker)
 
+        xnew = walker.configuration
         # compute "new" local energy
-        wf_value_new = self._guiding_wf(xnew)
-        local_energy_new = self._hamiltonian(self._guiding_wf, xnew) / wf_value_new
+        local_energy_new = self._hamiltonian(self._guiding_wf, xnew) / walker.value
 
         # update walker weight and configuration
-        v = self._guiding_wf.gradient(xold)/self._guiding_wf(xold)
+        #v = self._guiding_wf.gradient(xold)/self._guiding_wf(xold)
+        v = walker.previous_gradient / walker.previous_value
         s = (self._reference_energy - local_energy_old) \
             * np.linalg.norm(self._velocity_cutoff(v, time_step))/np.linalg.norm(v)
-        vprime = self._guiding_wf.gradient(xnew)/self._guiding_wf(xnew)
+
+        #vprime = self._guiding_wf.gradient(xnew)/self._guiding_wf(xnew)
+        vprime = walker.gradient / walker.value
         sprime = (self._reference_energy - local_energy_new) \
              * np.linalg.norm(self._velocity_cutoff(vprime, time_step))/np.linalg.norm(vprime)
 
         walker.weight *= math.exp(0.5*(s + sprime)*time_step)
-        walker.configuration = xnew
 
         return local_energy_new
 

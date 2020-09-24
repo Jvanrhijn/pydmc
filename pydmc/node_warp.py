@@ -19,22 +19,6 @@ def node_warp(x, psival, psigrad, psisec_val, psisec_grad, cutoff=lambda d: (0, 
     return xwarp, detj, jacobian
 
 
-def node_warp2(x, psival, psigrad, psisec_val, psisec_grad, cutoff=lambda d: (0, 0, 0)):
-    d = node_distance(psigrad, psival)
-    dprime = node_distance(psisec_grad, psisec_val)
-
-    nprime = psisec_grad / np.linalg.norm(psisec_grad)
-    n = psigrad / np.linalg.norm(psigrad)
-
-    u, uderiv, uderiv2 = cutoff(d)
-    xwarp = x + (d - dprime)*np.sign(psisec_val)*nprime*u
-
-    jacobian = np.eye(len(x)) - u*np.outer(nprime, nprime) \
-        + np.sign(psival*psisec_val)*(u + (d - dprime)*uderiv)*np.outer(nprime, n)
-    detj = 1 - u + np.sign(psisec_val*psival)*(u + (d - dprime)*uderiv) * (n @ nprime)
-    return xwarp, detj, jacobian, d, dprime
-
-
 def node_warp_fd(x, psi, psi_sec, dx=1e-7):
     warp = lambda x: _warp(x, psi, psi_sec)
     jacobian = np.zeros((len(x), len(x)))

@@ -106,6 +106,9 @@ class VMCForcesInput:
         psi_sec_warp = data["Psi (secondary, warp)"]
         
         jac = data["Jacobian"]
+        #jac = data["Jacobian (FD)"]
+
+        pathak = data["Pathak regularizer"]
 
         # compute local e derivative
         local_e_deriv = (local_energy_sec - local_energy) / da
@@ -125,8 +128,9 @@ class VMCForcesInput:
         energy = np.mean(local_energy)
         force_pulay = -(local_energy - energy) * 2*psilogderiv
         force_pulay_warp = -(local_energy - energy) * (2*psilogderiv_warp + jac_deriv)
+        force_pulay_pathak = -(local_energy - energy) * 2*psilogderiv * pathak
 
-        return force_hf, force_pulay, force_hf_warp, force_pulay_warp
+        return force_hf, force_pulay, force_hf_warp, force_pulay_warp, force_pulay_pathak
 
 
 class DMCForcesInput:
@@ -153,15 +157,19 @@ class DMCForcesInput:
             data[key] = np.array(value)
         return data
 
-    def compute_forces(self, fpath):
+    def compute_forces(self, fpath, wagner=False):
         data = self._retrieve_data(fpath)
         energy = np.mean(data["Local energy"])
 
         # Get Green's function derivatives
         sderiv_sum = data["grad_a S"]        
         sderiv_sum_warp = data["grad_a S (warp)"]        
-        tderiv_sum = data["grad_a T (no cutoff)"]        
-        tderiv_sum_warp = data["grad_a T (warp, no cutoff)"]        
+
+        tderiv_sum_nocutoff = data["grad_a T (no cutoff)"]        
+        tderiv_sum_warp_nocutoff = data["grad_a T (warp, no cutoff)"]        
+
+        tderiv_sum = data["grad_a T"]        
+        tderiv_sum_warp = data["grad_a T (warp)"]        
 
         # Get Jacobian (sum) derivative
         jderiv_sum = data["grad_a sum Log Jacobian"]
@@ -170,8 +178,12 @@ class DMCForcesInput:
         # Get products of E_L and Green's function derivatives
         el_times_sderiv_sum = data["E_L * grad_a S"]        
         el_times_sderiv_sum_warp = data["E_L * grad_a S (warp)"]        
-        el_times_tderiv_sum = data["E_L * grad_a T (no cutoff)"]        
-        el_times_tderiv_sum_warp = data["E_L * grad_a T (warp, no cutoff)"]        
+
+        el_times_tderiv_sum_nocutoff = data["E_L * grad_a T (no cutoff)"]        
+        el_times_tderiv_sum_warp_nocutoff = data["E_L * grad_a T (warp, no cutoff)"]        
+
+        el_times_tderiv_sum = data["E_L * grad_a T"]        
+        el_times_tderiv_sum_warp = data["E_L * grad_a T (warp)"]        
 
         # Get product of E_L and Jacobian (sum) derivative
         el_times_jderiv_sum = data["E_L * grad_a sum Log Jacobian"]
@@ -204,6 +216,17 @@ class DMCForcesInput:
                 +   el_times_jderiv_sum - energy*jderiv_sum \
                 )
 
+        force_pulay_exact_nocutoff = -(
+                    el_times_tderiv_sum_nocutoff - energy*tderiv_sum_nocutoff \
+                +   el_times_sderiv_sum - energy*sderiv_sum \
+                )
+
+        force_pulay_exact_warp_nocutoff = -(
+                    el_times_tderiv_sum_warp_nocutoff - energy*tderiv_sum_warp_nocutoff \
+                +   el_times_sderiv_sum_warp - energy*sderiv_sum_warp \
+                +   el_times_jderiv_sum - energy*jderiv_sum \
+                )
+
         force_pulay_vd = -(
                 2 * (el_times_psilogderiv - energy*psilogderiv) \
                 +    el_times_sderiv_sum - energy*sderiv_sum
@@ -221,5 +244,7 @@ class DMCForcesInput:
                force_pulay_exact_warp, \
                force_pulay_vd, \
                force_pulay_vd_warp, \
+               force_pulay_exact_nocutoff, \
+               force_pulay_exact_warp_nocutoff, \
                self._steps_per_block
 

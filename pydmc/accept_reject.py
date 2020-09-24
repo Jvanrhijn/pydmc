@@ -72,6 +72,52 @@ class DiffuseAcceptReject(AcceptReject):
         self._rng = np.random.default_rng(seed)
 
 
+class DiffuseAcceptRejectDMC(AcceptReject):
+
+    def __init__(self, seed=0, fixed_node=False):
+        self._rng = np.random.default_rng(seed)
+        self._fixed_node = fixed_node
+
+    def move_state(self, wave_function, time_step, walker):
+        x = walker.configuration
+
+        value_old = walker.value
+        drift_old = velocity_cutoff_umrigar(walker.gradient / value_old, time_step)
+        #value_old = wave_function(x)
+        #drift_old = velocity_cutoff_umrigar(wave_function.gradient(x) / value_old, time_step)
+
+        xprop = x + drift_old * time_step + self._rng.normal(size=x.shape, scale=math.sqrt(time_step))
+
+        value_new = wave_function(xprop)
+
+        # edge case
+        if value_new == 0:
+            return walker
+
+        grad_new = wave_function.gradient(xprop)
+        drift_new = velocity_cutoff_umrigar(grad_new / value_new, time_step)
+
+        # reject if node is crossed and we're doing FN-DMC
+        if self._fixed_node and math.copysign(1, value_old) != math.copysign(1, value_new):
+            return walker
+
+        try_num = np.exp(-np.linalg.norm(x - xprop - drift_new*time_step)**2 / (2*time_step))
+        try_den = np.exp(-np.linalg.norm(xprop - x - drift_old*time_step)**2 / (2*time_step))
+
+        acceptance = min(1, try_num * value_new**2 / (try_den * value_old**2))
+        accepted = acceptance > self._rng.uniform()
+
+        if accepted:
+            walker.configuration = xprop
+            walker.value = value_new
+            walker.gradient = grad_new
+
+        return walker
+
+    def reseed(self, seed):
+        self._rng = np.random.default_rng(seed)
+
+
 class DiffuseAcceptRejectSorella(AcceptReject):
 
     def __init__(self, seed=0, fixed_node=False, epsilon=1e-2):
