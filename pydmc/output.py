@@ -403,11 +403,11 @@ class DMCLoggerSorella:
         deps = d if d > self._epsilon \
             else self._epsilon*(d/self._epsilon)**(d/self._epsilon)
 
-        sorrella_weight = (d / deps)**2
+        sorella_weight = (d / deps)**2
 
         # Multiply weight by Sorella weight, to recover the
         # true distribution from the modified one
-        self._ensemble_data["Weight"].append(weight * sorrella_weight)
+        self._ensemble_data["Weight"].append(weight * sorella_weight)
 
         self._ensemble_data["Psi"].append(psival)
 
@@ -441,6 +441,8 @@ class DMCLoggerSorella:
 
         self._ensemble_data["grad_a Log Jacobian"].append(math.log(abs(jac)) / self._da)
         self._ensemble_data["E_L * grad_a Log Jacobian"].append(eloc * math.log(abs(jac)) / self._da)
+
+        self._ensemble_data["Sorella weight"].append(sorella_weight)
 
     def output(self):
         weights = np.array(self._ensemble_data["Weight"])

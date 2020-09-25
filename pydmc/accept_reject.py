@@ -93,6 +93,7 @@ class DiffuseAcceptRejectSorella(AcceptReject):
 
         acceptance = min(1, try_num * (value_new * deps_prime / dprime)**2 \
                          / (try_den * (value_old * deps/d)**2))
+
         accepted = acceptance > self._rng.uniform()
 
         return accepted, acceptance, (xprop if accepted else x)
@@ -200,7 +201,6 @@ class DiffuseAcceptRejectSorellaDMC(AcceptReject):
         acceptance = min(1, try_num * (value_new * deps_prime / dprime)**2 \
                          / (try_den * (value_old * deps/d)**2))
 
-        acceptance = min(1, try_num * value_new**2 / (try_den * value_old**2))
         accepted = acceptance > self._rng.uniform()
 
         if accepted:
