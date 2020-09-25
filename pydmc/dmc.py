@@ -2,7 +2,6 @@ import copy
 import math
 import multiprocessing
 from datetime import datetime
-import numba
 
 import numpy as np
 import tqdm

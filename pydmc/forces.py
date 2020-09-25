@@ -106,9 +106,9 @@ class VMCForcesInput:
         psi_sec_warp = data["Psi (secondary, warp)"]
         
         jac = data["Jacobian"]
-        #jac = data["Jacobian (FD)"]
 
-        pathak = data["Pathak regularizer"]
+        # need to do this for sequence of epsilon
+        pathak = data["Pathak regularizer"][0, :]
 
         # compute local e derivative
         local_e_deriv = (local_energy_sec - local_energy) / da

@@ -1,16 +1,16 @@
 from datetime import datetime
-import numba
 from pydmc.node_warp import *
 from collections import deque
 import pprint
 
 class VMCLogger:
 
-    def __init__(self, da, outfile, cutoff=lambda d: (0, 0, 0)):
+    def __init__(self, da, outfile, cutoff=lambda d: (0, 0, 0), pathak_sequence=[1e-3, 5e-3, 1e-2]):
         self._da = da
         self._cutoff = cutoff
         self._outfile = open(outfile, "w")
         self._start_time = datetime.now()
+        self._pathak_sequence = pathak_sequence
 
     def accumulate_samples(self, conf, psi, hamiltonian, tau):
         x = conf
@@ -27,15 +27,13 @@ class VMCLogger:
         xwarp, jac, j \
             = node_warp(x, psival, psigrad, psisec_val, psisec_grad, cutoff=self._cutoff)
         
-        _, jac_fd, _ = node_warp_fd(x, psi, psi_sec)
+        #_, jac_fd, _ = node_warp_fd(x, psi, psi_sec)
 
         psisec_val_warp = psi_sec(xwarp)
         
         eloc = hamiltonian(psi, x) / psival
         eloc_prime = hamiltonian(psi_sec, x) / psisec_val
         eloc_prime_warp = hamiltonian(psi_sec, xwarp) / psisec_val_warp
-
-        eps = 1e-1
 
         outdict = {
                 "Configuration": x,
@@ -44,12 +42,14 @@ class VMCLogger:
                 "Psi (secondary)": psisec_val,
                 "Gradpsi (secondary)": psisec_grad,
                 "Jacobian": jac,
-                "Jacobian (FD)": jac_fd,
+                #"Jacobian (FD)": jac_fd,
                 "Psi (secondary, warp)": psisec_val_warp,
                 "Local energy": eloc,
                 "Local energy (secondary)": eloc_prime,
                 "Local energy (secondary, warp)": eloc_prime_warp,
-                "Pathak regularizer": 7*(d/eps)**6 - 15*(d/eps)**4 + 9*(d/eps)**2 if (d/eps) < 1 else 1.0,
+                "Pathak regularizer": [
+                    7*(d/eps)**6 - 15*(d/eps)**4 + 9*(d/eps)**2 if (d/eps) < 1 else 1.0 for eps in self._pathak_sequence
+                ],
                 "da": self._da
         }
 

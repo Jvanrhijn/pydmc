@@ -14,26 +14,6 @@ class AcceptReject(ABC):
         pass
 
 
-class BoxAcceptReject(AcceptReject):
-
-    def __init__(self, seed=0):
-        self._rng = np.random.default_rng(seed)
-
-    def move_state(self, wave_function, x, time_step, velocity_cutoff=lambda v, tau: v):
-        value_old = wave_function(x)
-        
-        xprop = x + time_step/2 * self._rng.uniform(low=-1, high=1, size=x.shape)
-
-        value_new = wave_function(xprop)
-
-        ratio = value_new**2 / value_old**2
-
-        acceptance = min(1, ratio)
-        accepted = acceptance > self._rng.uniform()
-
-        return accepted, acceptance, (xprop if accepted else x)
-
-
 class DiffuseAcceptReject(AcceptReject):
 
     def __init__(self, seed=0, fixed_node=False):
@@ -64,6 +44,55 @@ class DiffuseAcceptReject(AcceptReject):
         try_den = np.exp(-np.linalg.norm(xprop - x - drift_old*time_step)**2 / (2*time_step))
 
         acceptance = min(1, try_num * value_new**2 / (try_den * value_old**2))
+        accepted = acceptance > self._rng.uniform()
+
+        return accepted, acceptance, (xprop if accepted else x)
+
+    def reseed(self, seed):
+        self._rng = np.random.default_rng(seed)
+
+
+class DiffuseAcceptRejectSorella(AcceptReject):
+
+    def __init__(self, seed=0, fixed_node=False, epsilon=1e-2):
+        self._rng = np.random.default_rng(seed)
+        self._fixed_node = fixed_node
+        self._epsilon = epsilon
+
+    def move_state(self, wave_function, x, time_step):
+        value_old = wave_function(x)
+        grad_old = wave_function.gradient(x)
+        drift_old = velocity_cutoff_umrigar(grad_old / value_old, time_step)
+
+        xprop = x + drift_old * time_step + self._rng.normal(size=x.shape, scale=math.sqrt(time_step))
+
+        value_new = wave_function(xprop)
+
+        # edge case
+        if value_new == 0:
+            return False, 0, x
+
+        grad_new = wave_function.gradient(xprop)
+        drift_new = velocity_cutoff_umrigar(grad_new / value_new, time_step)
+
+        # reject if node is crossed and we're doing FN-DMC
+        if self._fixed_node and math.copysign(1, value_old) != math.copysign(1, value_new):
+            return False, 0, x
+
+        try_num = np.exp(-np.linalg.norm(x - xprop - drift_new*time_step)**2 / (2*time_step))
+        try_den = np.exp(-np.linalg.norm(xprop - x - drift_old*time_step)**2 / (2*time_step))
+
+        # compute new distribution according to Sorella
+        d = node_distance(grad_old, value_old)
+        deps = d if d > self._epsilon \
+            else self._epsilon*(d/self._epsilon)**(d/self._epsilon)
+
+        dprime = node_distance(grad_new, value_new)
+        deps_prime = dprime if dprime > self._epsilon \
+            else self._epsilon*(dprime/self._epsilon)**(dprime/self._epsilon)
+
+        acceptance = min(1, try_num * (value_new * deps_prime / dprime)**2 \
+                         / (try_den * (value_old * deps/d)**2))
         accepted = acceptance > self._rng.uniform()
 
         return accepted, acceptance, (xprop if accepted else x)
@@ -124,16 +153,18 @@ class DiffuseAcceptRejectDMC(AcceptReject):
         self._rng = np.random.default_rng(seed)
 
 
-class DiffuseAcceptRejectSorella(AcceptReject):
+class DiffuseAcceptRejectSorellaDMC(AcceptReject):
 
     def __init__(self, seed=0, fixed_node=False, epsilon=1e-2):
         self._rng = np.random.default_rng(seed)
         self._fixed_node = fixed_node
         self._epsilon = epsilon
 
-    def move_state(self, wave_function, x, time_step):
-        value_old = wave_function(x)
-        grad_old = wave_function.gradient(x)
+    def move_state(self, wave_function, time_step, walker):
+        x = walker.configuration
+
+        value_old = walker.value
+        grad_old = walker.gradient
         drift_old = velocity_cutoff_umrigar(grad_old / value_old, time_step)
 
         xprop = x + drift_old * time_step + self._rng.normal(size=x.shape, scale=math.sqrt(time_step))
@@ -142,14 +173,17 @@ class DiffuseAcceptRejectSorella(AcceptReject):
 
         # edge case
         if value_new == 0:
-            return False, 0, x
+            walker.configuration = x
+            walker.value = value_old
+            walker.gradient = grad_old
+            return walker
 
         grad_new = wave_function.gradient(xprop)
         drift_new = velocity_cutoff_umrigar(grad_new / value_new, time_step)
 
         # reject if node is crossed and we're doing FN-DMC
         if self._fixed_node and math.copysign(1, value_old) != math.copysign(1, value_new):
-            return False, 0, x
+            return walker
 
         try_num = np.exp(-np.linalg.norm(x - xprop - drift_new*time_step)**2 / (2*time_step))
         try_den = np.exp(-np.linalg.norm(xprop - x - drift_old*time_step)**2 / (2*time_step))
@@ -165,47 +199,20 @@ class DiffuseAcceptRejectSorella(AcceptReject):
 
         acceptance = min(1, try_num * (value_new * deps_prime / dprime)**2 \
                          / (try_den * (value_old * deps/d)**2))
+
+        acceptance = min(1, try_num * value_new**2 / (try_den * value_old**2))
         accepted = acceptance > self._rng.uniform()
 
-        return accepted, acceptance, (xprop if accepted else x)
+        if accepted:
+            walker.configuration = xprop
+            walker.value = value_new
+            walker.gradient = grad_new
+        else:
+            walker.configuration = x
+            walker.value = value_old
+            walker.gradient = grad_old
 
-    def reseed(self, seed):
-        self._rng = np.random.default_rng(seed)
-
-
-class BoxAcceptRejectSorella(AcceptReject):
-
-    def __init__(self, seed=0, epsilon=1e-2):
-        self._rng = np.random.default_rng(seed)
-        self._epsilon = epsilon
-
-    def move_state(self, wave_function, x, time_step):
-        value_old = wave_function(x)
-        grad_old = wave_function.gradient(x)
-
-        xprop = x + time_step/2 * self._rng.uniform(low=-1, high=1, size=x.shape)
-
-        value_new = wave_function(xprop)
-        grad_new = wave_function.gradient(xprop)
-
-        # edge case
-        if value_new == 0:
-            return False, 0, x
-
-        # compute new distribution according to Sorella
-        d = node_distance(grad_old, value_old)
-        deps = d if d > self._epsilon \
-            else self._epsilon*(d/self._epsilon)**(d/self._epsilon)
-
-        dprime = node_distance(grad_new, value_new)
-        deps_prime = dprime if dprime > self._epsilon \
-            else self._epsilon*(dprime/self._epsilon)**(dprime/self._epsilon)
-
-        acceptance = min(1, (value_new * deps_prime / dprime)**2 \
-                         / (value_old * deps/d)**2)
-        accepted = acceptance > self._rng.uniform()
-
-        return accepted, acceptance, (xprop if accepted else x)
+        return walker
 
     def reseed(self, seed):
         self._rng = np.random.default_rng(seed)
