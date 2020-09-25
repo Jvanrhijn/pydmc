@@ -171,22 +171,48 @@ class DMCLogger:
             * np.linalg.norm(vbar_sec_warp)/np.linalg.norm(vsec_warp)
 
         if np.all(x == xprev):
-            t = 0
-            tsec = 0
-            tsec_warp = 0
+#            t = 0
+#            tsec = 0
+#            tsec_warp = 0
+#
+#            tnocutoff = 0
+#            tsecnocutoff = 0
+#            tsecnocutoff_warp = 0
 
-            tnocutoff = 0
-            tsecnocutoff = 0
-            tsecnocutoff_warp = 0
+            tgrad = 0
+            tgrad_warp = 0
+
+            tgrad_nocutoff = 0
+            tgrad_warp_nocutoff = 0
         else:        
-            t = -np.linalg.norm(x - xprev - velocity_cutoff(vprev, tau)*tau)**2 / (2*tau)
-            tsec = -np.linalg.norm(x - xprev - velocity_cutoff(vsec_prev, tau)*tau)**2 / (2*tau)
-            tsec_warp = -np.linalg.norm(xwarp - xprev_warp - velocity_cutoff(vsec_warp_prev, tau)*tau)**2 / (2*tau)
+            u = x - xprev - velocity_cutoff(vprev, tau)*tau
+            #usec = x - xprev - velocity_cutoff(vsec_prev, tau)*tau
+            uwarp = xwarp - xprev_warp - velocity_cutoff(vsec_warp_prev, tau)*tau
 
-            tnocutoff = -np.linalg.norm(x - xprev - vprev*tau)**2 / (2*tau)
-            tsecnocutoff = -np.linalg.norm(x - xprev - vsec_prev*tau)**2 / (2*tau)
-            tsecnocutoff_warp = -np.linalg.norm(xwarp - xprev_warp - vsec_warp_prev*tau)**2 / (2*tau)
+            u_nocutoff = x - xprev - vprev*tau
+            #usec_nocutoff = x - xprev - vsec_prev*tau
+            uwarp_nocutoff = xwarp - xprev_warp - vsec_warp_prev*tau
 
+            gradv_nocutoff = (vsec_prev - vprev) / self._da
+            gradv_warp_nocutoff = (vsec_warp_prev - vprev) / self._da
+
+            gradv = (velocity_cutoff(vsec_prev, tau) - velocity_cutoff(vprev, tau)) / self._da
+            gradv_warp = (velocity_cutoff(vsec_warp_prev, tau) - velocity_cutoff(vprev, tau)) / self._da
+
+            tgrad = (u @ gradv)
+            tgrad_warp = (uwarp @ gradv_warp)
+
+            tgrad_nocutoff = (u_nocutoff @ gradv_nocutoff)
+            tgrad_warp_nocutoff = (uwarp_nocutoff @ gradv_warp_nocutoff)
+
+#            t = -np.linalg.norm(x - xprev - velocity_cutoff(vprev, tau)*tau)**2 / (2*tau)
+#            tsec = -np.linalg.norm(x - xprev - velocity_cutoff(vsec_prev, tau)*tau)**2 / (2*tau)
+#            tsec_warp = -np.linalg.norm(xwarp - xprev_warp - velocity_cutoff(vsec_warp_prev, tau)*tau)**2 / (2*tau)
+#
+#            tnocutoff = -np.linalg.norm(x - xprev - vprev*tau)**2 / (2*tau)
+#            tsecnocutoff = -np.linalg.norm(x - xprev - vsec_prev*tau)**2 / (2*tau)
+#            tsecnocutoff_warp = -np.linalg.norm(xwarp - xprev_warp - vsec_warp_prev*tau)**2 / (2*tau)
+#
         self._ensemble_data["Weight"].append(weight)
 
         self._ensemble_data["Psi"].append(psival)
@@ -194,16 +220,20 @@ class DMCLogger:
         self._ensemble_data["Local energy"].append(eloc)
 
         self._ensemble_data["grad_a S"].append((ssec - s) / self._da)
-        self._ensemble_data["grad_a T"].append((tsec - t) / self._da)
+        #self._ensemble_data["grad_a T"].append((tsec - t) / self._da)
+        self._ensemble_data["grad_a T"].append(tgrad)
 
         self._ensemble_data["grad_a S (warp)"].append((ssec_warp - s) / self._da)
-        self._ensemble_data["grad_a T (warp)"].append((tsec_warp - t) / self._da)
+        #self._ensemble_data["grad_a T (warp)"].append((tsec_warp - t) / self._da)
+        self._ensemble_data["grad_a T (warp)"].append(tgrad_warp)
 
         self._ensemble_data["grad_a S (no cutoff)"].append((ssecnocutoff - snocutoff) / self._da)
-        self._ensemble_data["grad_a T (no cutoff)"].append((tsecnocutoff - tnocutoff) / self._da)
+        #self._ensemble_data["grad_a T (no cutoff)"].append((tsecnocutoff - tnocutoff) / self._da)
+        self._ensemble_data["grad_a T (no cutoff)"].append(tgrad_nocutoff)
 
         self._ensemble_data["grad_a S (warp, no cutoff)"].append((ssecnocutoff_warp - snocutoff) / self._da)
-        self._ensemble_data["grad_a T (warp, no cutoff)"].append((tsecnocutoff_warp - tnocutoff) / self._da)
+        #self._ensemble_data["grad_a T (warp, no cutoff)"].append((tsecnocutoff_warp - tnocutoff) / self._da)
+        self._ensemble_data["grad_a T (warp, no cutoff)"].append(tgrad_warp_nocutoff)
 
         self._ensemble_data["grad_a sum Log Jacobian"].append(math.log(abs(jac))/ self._da) 
         self._ensemble_data["grad_a E_L"].append((eloc_prime - eloc) / self._da)
