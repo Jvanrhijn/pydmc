@@ -2,6 +2,7 @@ import copy
 import math
 import multiprocessing
 from datetime import datetime
+import numba
 
 import numpy as np
 import tqdm
@@ -53,45 +54,8 @@ class DMC:
             range_wrapper = lambda x: x
 
         for b in range_wrapper(range(num_blocks)):
-
-            block_energies = np.zeros(steps_per_block)
-
-            for i in range(steps_per_block):
-
-                ensemble_energy = 0
-                total_weight = 0
-
-                for iwalker, walker in enumerate(self._walkers):
-                    self._confs.append(walker.configuration)
-                    local_energy = self._update_walker(walker, time_step)
-                    ensemble_energy += walker.weight*local_energy
-                    total_weight += walker.weight
-
-                    if self.force_accumulators is not None and b >= neq:
-                        # accumulate samples over an ensemble
-                        for fa in self.force_accumulators:
-                            fa.accumulate_samples(
-                                iwalker,
-                                walker, 
-                                self._guiding_wf, 
-                                self._hamiltonian, 
-                                self._reference_energy, 
-                                time_step,
-                                self._velocity_cutoff,
-                                len(self._walkers)
-                            )
-
-                if self.force_accumulators is not None and b >= neq:
-                    for fa in self.force_accumulators:
-                        fa.output()
-
-                ensemble_energy /= total_weight
-                block_energies[i] = ensemble_energy
-
-                self._energy_all.append(ensemble_energy)
-
-                if b < neq:
-                    self._reference_energy = 0.5 * (self._reference_energy + ensemble_energy)
+            
+            block_energies = self._run_block(steps_per_block, b, neq, time_step)
 
             self._brancher.perform_branching(self._walkers)
 
@@ -109,6 +73,50 @@ class DMC:
             if b >= neq:
                 self.update_energy_estimate(block_average_energy)
                 self._reference_energy = (self._reference_energy + self._energy_cumulative[-1]) / 2
+
+
+    def _run_block(self, steps_per_block, b, neq, time_step):
+        block_energies = np.zeros(steps_per_block)
+
+        for i in range(steps_per_block):
+
+            ensemble_energy = 0
+            total_weight = 0
+
+            for iwalker, walker in enumerate(self._walkers):
+                self._confs.append(walker.configuration)
+                local_energy = self._update_walker(walker, time_step)
+                ensemble_energy += walker.weight*local_energy
+                total_weight += walker.weight
+
+                if self.force_accumulators is not None and b >= neq:
+                    # accumulate samples over an ensemble
+                    for fa in self.force_accumulators:
+                        fa.accumulate_samples(
+                            iwalker,
+                            walker, 
+                            self._guiding_wf, 
+                            self._hamiltonian, 
+                            self._reference_energy, 
+                            time_step,
+                            self._velocity_cutoff,
+                            len(self._walkers)
+                        )
+
+            if self.force_accumulators is not None and b >= neq:
+                for fa in self.force_accumulators:
+                    fa.output()
+
+            ensemble_energy /= total_weight
+            block_energies[i] = ensemble_energy
+
+            self._energy_all.append(ensemble_energy)
+
+            if b < neq:
+                self._reference_energy = 0.5 * (self._reference_energy + ensemble_energy)
+
+        return block_energies
+
 
     def _update_walker(self, walker, time_step):
         xold = walker.configuration

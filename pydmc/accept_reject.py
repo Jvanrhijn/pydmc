@@ -82,9 +82,8 @@ class DiffuseAcceptRejectDMC(AcceptReject):
         x = walker.configuration
 
         value_old = walker.value
-        drift_old = velocity_cutoff_umrigar(walker.gradient / value_old, time_step)
-        #value_old = wave_function(x)
-        #drift_old = velocity_cutoff_umrigar(wave_function.gradient(x) / value_old, time_step)
+        grad_old = walker.gradient
+        drift_old = velocity_cutoff_umrigar(grad_old / value_old, time_step)
 
         xprop = x + drift_old * time_step + self._rng.normal(size=x.shape, scale=math.sqrt(time_step))
 
@@ -92,6 +91,9 @@ class DiffuseAcceptRejectDMC(AcceptReject):
 
         # edge case
         if value_new == 0:
+            walker.configuration = x
+            walker.value = value_old
+            walker.gradient = grad_old
             return walker
 
         grad_new = wave_function.gradient(xprop)
@@ -111,6 +113,10 @@ class DiffuseAcceptRejectDMC(AcceptReject):
             walker.configuration = xprop
             walker.value = value_new
             walker.gradient = grad_new
+        else:
+            walker.configuration = x
+            walker.value = value_old
+            walker.gradient = grad_old
 
         return walker
 

@@ -1,6 +1,7 @@
 import numpy as np
 import math
 from pydmc.util import *
+import numba
 
 
 def node_warp(x, psival, psigrad, psisec_val, psisec_grad, cutoff=lambda d: (0, 0, 0)):
