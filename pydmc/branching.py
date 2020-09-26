@@ -22,10 +22,10 @@ class SRBrancher(Brancher):
         weights = np.array([walker.weight for walker in walkers])
         weights /= weights.sum()
         global_weight = np.mean(weights)
-        #global_weight = 1/len(walkers)
-        confs = [walker.configuration for walker in walkers]
-        new_confs = random.choices(confs, weights=weights, k=len(walkers))
-        return [Walker(conf, global_weight) for conf in new_confs]
+        new_walkers = random.choices(walkers, weights=weights, k=len(walkers))
+        for walker in new_walkers:
+            walker.weight = global_weight
+        return new_walkers
 
 
 class SimpleBrancher(Brancher):
