@@ -25,7 +25,10 @@ class SRBrancher(Brancher):
         new_walkers = random.choices(walkers, weights=weights, k=len(walkers))
         for walker in new_walkers:
             walker.weight = global_weight
-        return new_walkers
+        
+        # random.choices returns references to original objects, which
+        # reduces the population size. Copy each walker to prevent this.
+        return [copy.deepcopy(walker) for walker in new_walkers]
 
 
 class SimpleBrancher(Brancher):
