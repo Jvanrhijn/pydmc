@@ -14,8 +14,7 @@ def node_warp(x, psival, psigrad, psisec_val, psisec_grad, cutoff=lambda d: (0, 
     u, uderiv, uderiv2 = cutoff(d)
     xwarp = x + (d - dprime)*np.sign(psisec_val)*nprime*u
 
-    jacobian = np.eye(len(x)) - u*np.outer(nprime, nprime) \
-        + np.sign(psival*psisec_val)*(u + (d - dprime)*uderiv)*np.outer(nprime, n)
+    jacobian = np.eye(len(x))
     detj = 1 - u + np.sign(psisec_val*psival)*(u + (d - dprime)*uderiv) * (n @ nprime)
     return xwarp, detj, jacobian
 

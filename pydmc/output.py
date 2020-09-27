@@ -2,6 +2,8 @@ from datetime import datetime
 from pydmc.node_warp import *
 from collections import deque
 import pprint
+from collections import defaultdict
+
 
 class VMCLogger:
 
@@ -27,8 +29,6 @@ class VMCLogger:
         xwarp, jac, j \
             = node_warp(x, psival, psigrad, psisec_val, psisec_grad, cutoff=self._cutoff)
         
-        #_, jac_fd, _ = node_warp_fd(x, psi, psi_sec)
-
         psisec_val_warp = psi_sec(xwarp)
         
         eloc = hamiltonian(psi, x) / psival
@@ -53,7 +53,7 @@ class VMCLogger:
                 "da": self._da
         }
 
-        self._outfile.write(str(outdict) + "\n")
+        self._outfile.write(repr(outdict) + "\n")
 
 
 class DMCLogger:
@@ -65,38 +65,7 @@ class DMCLogger:
         self._start_time = datetime.now()
         self._counter = 0
         self._steps_per_block = lag
-
-        self._ensemble_data = {
-                "Weight": [],
-                "Psi": [],
-                "Local energy": [],
-                "grad_a E_L": [],
-                "grad_a E_L (warp)": [],
-                "grad_a Log Psi": [],
-                "grad_a Log Psi (warp)": [],
-                "grad_a sum Log Jacobian": [],
-                "E_L * grad_a Log Jacobian": [],
-                "E_L * grad_a Log Psi": [],
-                "E_L * grad_a Log Psi (warp)": [],
-                "grad_a S": [],
-                "grad_a T": [],
-                "grad_a S (warp)": [],
-                "grad_a T (warp)": [],
-                "grad_a S (no cutoff)": [],
-                "grad_a T (no cutoff)": [],
-                "grad_a S (warp, no cutoff)": [],
-                "grad_a T (warp, no cutoff)": [],
-                "grad_a Log Jacobian": [],
-                "E_L * grad_a S": [],
-                "E_L * grad_a S (warp)": [],
-                "E_L * grad_a T": [],
-                "E_L * grad_a T (warp)": [],
-                "E_L * grad_a S (no cutoff)": [],
-                "E_L * grad_a T (no cutoff)": [],
-                "E_L * grad_a S (warp, no cutoff)": [],
-                "E_L * grad_a T (warp, no cutoff)": [],
-                "E_L * grad_a sum Log Jacobian": [],
-        }
+        self._ensemble_data = defaultdict(list)
 
         self._histories = {
                 "grad_a S": [deque(maxlen=lag) for _ in range(nwalkers)],
@@ -249,7 +218,7 @@ class DMCLogger:
         for key, value in self._ensemble_data.items():
             self._ensemble_data[key] = np.average(value, weights=weights)
             
-        self._outfile.write(str(self._ensemble_data) + "\n")
+        self._outfile.write(str(dict(self._ensemble_data)) + "\n")
 
         # reset the ensemble data for the next run
         for key in self._ensemble_data:
@@ -266,39 +235,7 @@ class DMCLoggerSorella:
         self._counter = 0
         self._steps_per_block = lag
         self._epsilon = sorella_eps
-
-        self._ensemble_data = {
-                "Weight": [],
-                "Psi": [],
-                "Local energy": [],
-                "grad_a E_L": [],
-                "grad_a E_L (warp)": [],
-                "grad_a Log Psi": [],
-                "grad_a Log Psi (warp)": [],
-                "grad_a sum Log Jacobian": [],
-                "E_L * grad_a Log Jacobian": [],
-                "E_L * grad_a Log Psi": [],
-                "E_L * grad_a Log Psi (warp)": [],
-                "grad_a S": [],
-                "grad_a T": [],
-                "grad_a S (warp)": [],
-                "grad_a T (warp)": [],
-                "grad_a S (no cutoff)": [],
-                "grad_a T (no cutoff)": [],
-                "grad_a S (warp, no cutoff)": [],
-                "grad_a T (warp, no cutoff)": [],
-                "grad_a Log Jacobian": [],
-                "E_L * grad_a S": [],
-                "E_L * grad_a S (warp)": [],
-                "E_L * grad_a T": [],
-                "E_L * grad_a T (warp)": [],
-                "E_L * grad_a S (no cutoff)": [],
-                "E_L * grad_a T (no cutoff)": [],
-                "E_L * grad_a S (warp, no cutoff)": [],
-                "E_L * grad_a T (warp, no cutoff)": [],
-                "E_L * grad_a sum Log Jacobian": [],
-                "Sorella weight": [],
-        }
+        self._ensemble_data = defaultdict(list)
 
         self._histories = {
                 "grad_a S": [deque(maxlen=lag) for _ in range(nwalkers)],
