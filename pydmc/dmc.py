@@ -131,12 +131,10 @@ class DMC:
         local_energy_new = self._hamiltonian(self._guiding_wf, xnew) / walker.value
 
         # update walker weight and configuration
-        #v = self._guiding_wf.gradient(xold)/self._guiding_wf(xold)
         v = walker.previous_gradient / walker.previous_value
         s = (self._reference_energy - local_energy_old) \
             * np.linalg.norm(self._velocity_cutoff(v, time_step))/np.linalg.norm(v)
 
-        #vprime = self._guiding_wf.gradient(xnew)/self._guiding_wf(xnew)
         vprime = walker.gradient / walker.value
         sprime = (self._reference_energy - local_energy_new) \
              * np.linalg.norm(self._velocity_cutoff(vprime, time_step))/np.linalg.norm(vprime)
