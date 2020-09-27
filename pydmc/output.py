@@ -13,6 +13,7 @@ class VMCLogger:
         self._outfile = open(outfile, "w")
         self._start_time = datetime.now()
         self._pathak_sequence = pathak_sequence
+        np.set_printoptions(linewidth=np.inf)
 
     def accumulate_samples(self, conf, psi, hamiltonian, tau):
         x = conf
@@ -53,7 +54,7 @@ class VMCLogger:
                 "da": self._da
         }
 
-        self._outfile.write(repr(outdict) + "\n")
+        self._outfile.write(str(outdict) + "\n")
 
 
 class DMCLogger:

@@ -108,7 +108,7 @@ class VMCForcesInput:
         jac = data["Jacobian"]
 
         # need to do this for sequence of epsilon
-        pathak = data["Pathak regularizer"][0, :]
+        pathak = data["Pathak regularizer"][:, 0]
 
         # compute local e derivative
         local_e_deriv = (local_energy_sec - local_energy) / da
