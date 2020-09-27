@@ -13,7 +13,6 @@ class VMCLogger:
         self._outfile = open(outfile, "w")
         self._start_time = datetime.now()
         self._pathak_sequence = pathak_sequence
-        np.set_printoptions(linewidth=np.inf)
 
     def accumulate_samples(self, conf, psi, hamiltonian, tau):
         x = conf
@@ -43,7 +42,6 @@ class VMCLogger:
                 "Psi (secondary)": psisec_val,
                 "Gradpsi (secondary)": psisec_grad,
                 "Jacobian": jac,
-                #"Jacobian (FD)": jac_fd,
                 "Psi (secondary, warp)": psisec_val_warp,
                 "Local energy": eloc,
                 "Local energy (secondary)": eloc_prime,
@@ -83,6 +81,7 @@ class DMCLogger:
     def accumulate_samples(self, iwalker, walker, psi, hamiltonian, eref, tau, velocity_cutoff, num_walkers):
         if self._counter == 0:
             self._outfile.write(f"Number of walkers: {num_walkers} | Time step: {tau} | Steps per block: {self._steps_per_block}\n")
+
         self._counter += 1
 
         x = walker.configuration
@@ -173,19 +172,15 @@ class DMCLogger:
         self._ensemble_data["Local energy"].append(eloc)
 
         self._ensemble_data["grad_a S"].append((ssec - s) / self._da)
-        #self._ensemble_data["grad_a T"].append((tsec - t) / self._da)
         self._ensemble_data["grad_a T"].append(tgrad)
 
         self._ensemble_data["grad_a S (warp)"].append((ssec_warp - s) / self._da)
-        #self._ensemble_data["grad_a T (warp)"].append((tsec_warp - t) / self._da)
         self._ensemble_data["grad_a T (warp)"].append(tgrad_warp)
 
         self._ensemble_data["grad_a S (no cutoff)"].append((ssecnocutoff - snocutoff) / self._da)
-        #self._ensemble_data["grad_a T (no cutoff)"].append((tsecnocutoff - tnocutoff) / self._da)
         self._ensemble_data["grad_a T (no cutoff)"].append(tgrad_nocutoff)
 
         self._ensemble_data["grad_a S (warp, no cutoff)"].append((ssecnocutoff_warp - snocutoff) / self._da)
-        #self._ensemble_data["grad_a T (warp, no cutoff)"].append((tsecnocutoff_warp - tnocutoff) / self._da)
         self._ensemble_data["grad_a T (warp, no cutoff)"].append(tgrad_warp_nocutoff)
 
         self._ensemble_data["grad_a sum Log Jacobian"].append(math.log(abs(jac))/ self._da) 
@@ -352,19 +347,15 @@ class DMCLoggerSorella:
         self._ensemble_data["Local energy"].append(eloc)
 
         self._ensemble_data["grad_a S"].append((ssec - s) / self._da)
-        #self._ensemble_data["grad_a T"].append((tsec - t) / self._da)
         self._ensemble_data["grad_a T"].append(tgrad)
 
         self._ensemble_data["grad_a S (warp)"].append((ssec_warp - s) / self._da)
-        #self._ensemble_data["grad_a T (warp)"].append((tsec_warp - t) / self._da)
         self._ensemble_data["grad_a T (warp)"].append(tgrad_warp)
 
         self._ensemble_data["grad_a S (no cutoff)"].append((ssecnocutoff - snocutoff) / self._da)
-        #self._ensemble_data["grad_a T (no cutoff)"].append((tsecnocutoff - tnocutoff) / self._da)
         self._ensemble_data["grad_a T (no cutoff)"].append(tgrad_nocutoff)
 
         self._ensemble_data["grad_a S (warp, no cutoff)"].append((ssecnocutoff_warp - snocutoff) / self._da)
-        #self._ensemble_data["grad_a T (warp, no cutoff)"].append((tsecnocutoff_warp - tnocutoff) / self._da)
         self._ensemble_data["grad_a T (warp, no cutoff)"].append(tgrad_warp_nocutoff)
 
         self._ensemble_data["grad_a sum Log Jacobian"].append(math.log(abs(jac))/ self._da) 
