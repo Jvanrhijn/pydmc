@@ -11,7 +11,6 @@ class VMCLogger:
     def __init__(self, da, outfile, cutoff=lambda d: (0, 0, 0), pathak_sequence=[1e-3, 5e-3, 1e-2]):
         self._da = da
         self._cutoff = cutoff
-        #self._outfile = open(outfile, "w")
         self._start_time = datetime.now()
         self._pathak_sequence = pathak_sequence
         self._block_data = defaultdict(list)
