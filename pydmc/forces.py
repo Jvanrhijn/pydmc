@@ -80,43 +80,39 @@ class VMCForcesInput:
         #data = self._retrieve_data(fpath)
         data = h5py.File(fpath, "r")
 
-        da = data["da"].value[1:].flatten()
         local_energy = data["Local energy"].value[1:]
-        local_energy_sec = data["Local energy (secondary)"].value[1:]
-        local_energy_sec_warp = data["Local energy (secondary, warp)"].value[1:]
+        energy = np.mean(local_energy)
 
-        psi = data["Psi"].value[1:]
-        psi_sec = data["Psi (secondary)"].value[1:]
-        psi_sec_warp = data["Psi (secondary, warp)"].value[1:]
+        el_grad = data["grad_a E_L"].value[1:]
+        el_grad_warp = data["grad_a E_L (warp)"].value[1:]
+
+        logpsi_grad = data["grad_a log Psi"].value[1:]
+        logpsi_grad_warp = data["grad_a log Psi (warp)"].value[1:]
+
+        el_times_logpsi_grad = data["E_L * grad_a log Psi"].value[1:]
+        el_times_logpsi_grad_warp = data["E_L * grad_a log Psi (warp)"].value[1:]
         
-        jac = data["Jacobian"].value[1:]
+        logjac_grad = data["grad_a log Jacobian"].value[1:]
+        el_times_logjac_grad = data["E_L * grad_a log Jacobian"].value[1:]
 
         # TODO: need to do this for sequence of epsilon
         #pathak = data["Pathak regularizer"][:, 0]
 
-        # compute local e derivative
-        local_e_deriv = (local_energy_sec - local_energy) / da
-        local_e_deriv_warp = (local_energy_sec_warp - local_energy) / da
-
-        force_hf = -local_e_deriv
-        force_hf_warp = -local_e_deriv_warp
-
-        # compute psi derivative
-        psilogderiv = (np.log(np.abs(psi_sec)) - np.log(np.abs(psi))) / da
-        psilogderiv_warp = (np.log(np.abs(psi_sec_warp)) - np.log(np.abs(psi))) / da
-
-        # Jacobian derivative
-        jac_deriv = np.log(np.abs(jac))/da
+        force_hf = -el_grad
+        force_hf_warp = -el_grad_warp
 
         # pulay force
-        energy = np.mean(local_energy)
-        force_pulay = -(local_energy - energy) * 2*psilogderiv
-        force_pulay_warp = -(local_energy - energy) * (2*psilogderiv_warp + jac_deriv)
-        force_pulay_pathak = -(local_energy - energy) * 2*psilogderiv * 1#pathak
+        force_pulay = -(2 * (el_times_logpsi_grad - energy * logpsi_grad))
+        force_pulay_warp = -(2 * (el_times_logpsi_grad_warp - energy * logpsi_grad_warp) \
+                                + el_times_logjac_grad - energy * logjac_grad)
+        #force_pulay_warp = -(local_energy - energy) * (2*psilogderiv_warp + jac_deriv)
+
+        # TODO:
+        force_pulay_pathak = -(local_energy - energy) * 0
 
         data.close()
 
-        return force_hf, force_pulay, force_hf_warp, force_pulay_warp, force_pulay_pathak
+        return force_hf.flatten(), force_pulay.flatten(), force_hf_warp.flatten(), force_pulay_warp.flatten(), force_pulay_pathak.flatten()
 
 
 class DMCForcesInput:

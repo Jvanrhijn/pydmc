@@ -17,15 +17,19 @@ class VMCLogger:
         self._block_data = defaultdict(list)
 
         self._outfile = h5py.File(outfile, "w")
-        scalar_keys = ["Psi", "Psi (secondary)", "Jacobian", "Psi (secondary, warp)", \
-            "Local energy", "Local energy (secondary)", "Local energy (secondary, warp)", "da"
+        scalar_keys = [
+            "grad_a log Psi", 
+            "grad_a log Psi (warp)", 
+            "grad_a log Jacobian", 
+            "E_L * grad_a log Psi", 
+            "E_L * grad_a log Psi (warp)", 
+            "E_L * grad_a log Jacobian",
+            "Local energy", 
+            "grad_a E_L", 
+            "grad_a E_L (warp)"
         ]
-        vector_keys = ["Configuration", "Gradpsi", "Gradpsi (secondary)"]
-
         for key in scalar_keys:
             self._outfile.create_dataset(key, (1, 1), maxshape=(None, 1), chunks=(1, 1))
-        for key in vector_keys:
-            self._outfile.create_dataset(key, (1, 2), maxshape=(None, 2), chunks=(1, 2))
 
     def accumulate_samples(self, conf, psi, hamiltonian, tau):
         x = conf
@@ -48,21 +52,25 @@ class VMCLogger:
         eloc_prime = hamiltonian(psi_sec, x) / psisec_val
         eloc_prime_warp = hamiltonian(psi_sec, xwarp) / psisec_val_warp
 
+        el_grad = (eloc_prime - eloc) / self._da
+        el_grad_warp = (eloc_prime_warp - eloc) / self._da
+
+        logpsi_grada = (math.log(abs(psisec_val)) - math.log(abs(psival))) / self._da
+        logpsi_grada_warp = (math.log(abs(psisec_val_warp)) - math.log(abs(psival))) / self._da
+
         block_data = {
-                "Configuration": x,
-                "Psi": psival,
-                "Gradpsi": psigrad,
-                "Psi (secondary)": psisec_val,
-                "Gradpsi (secondary)": psisec_grad,
-                "Jacobian": jac,
-                "Psi (secondary, warp)": psisec_val_warp,
+                "grad_a log Psi": logpsi_grada,
+                "grad_a log Psi (warp)": logpsi_grada_warp,
+                "grad_a log Jacobian": math.log(abs(jac))/self._da,
+                "E_L * grad_a log Psi": eloc*logpsi_grada,
+                "E_L * grad_a log Psi (warp)": eloc*logpsi_grada_warp,
+                "E_L * grad_a log Jacobian": math.log(abs(jac))/self._da,
                 "Local energy": eloc,
-                "Local energy (secondary)": eloc_prime,
-                "Local energy (secondary, warp)": eloc_prime_warp,
+                "grad_a E_L": el_grad,
+                "grad_a E_L (warp)": el_grad_warp,
                 #"Pathak regularizer": [
                     #7*(d/eps)**6 - 15*(d/eps)**4 + 9*(d/eps)**2 if (d/eps) < 1 else 1.0 for eps in self._pathak_sequence
                 #],
-                "da": self._da
         }
 
         for key, value in block_data.items():
