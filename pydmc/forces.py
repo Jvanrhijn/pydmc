@@ -160,6 +160,7 @@ class DMCForcesInput:
     def compute_forces(self, fpath, wagner=False):
         data = self._retrieve_data(fpath)
         energy = np.mean(data["Local energy"])
+        weights = data["Weight"]
 
         # Get Green's function derivatives
         sderiv_sum = data["grad_a S"]        
@@ -246,5 +247,6 @@ class DMCForcesInput:
                force_pulay_vd_warp, \
                force_pulay_exact_nocutoff, \
                force_pulay_exact_warp_nocutoff, \
-               self._steps_per_block
+               self._steps_per_block, \
+               weights
 

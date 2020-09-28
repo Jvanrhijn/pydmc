@@ -148,22 +148,20 @@ class DMCLogger:
             tgrad_warp_nocutoff = 0
         else:        
             u = x - xprev - velocity_cutoff(vprev, tau)*tau
-            uwarp = xwarp - xprev_warp - velocity_cutoff(vsec_warp_prev, tau)*tau
-
             u_nocutoff = x - xprev - vprev*tau
-            uwarp_nocutoff = xwarp - xprev_warp - vsec_warp_prev*tau
 
             gradv_nocutoff = (vsec_prev - vprev) / self._da
             gradv_warp_nocutoff = (vsec_warp_prev - vprev) / self._da
 
             gradv = (velocity_cutoff(vsec_prev, tau) - velocity_cutoff(vprev, tau)) / self._da
             gradv_warp = (velocity_cutoff(vsec_warp_prev, tau) - velocity_cutoff(vprev, tau)) / self._da
+            #gradv_warp = (vsec_warp_prev - vprev) / self._da
 
-            tgrad = (u @ gradv)
-            tgrad_warp = (uwarp @ gradv_warp)
+            tgrad = u @ gradv
+            tgrad_warp = u @ gradv_warp
 
-            tgrad_nocutoff = (u_nocutoff @ gradv_nocutoff)
-            tgrad_warp_nocutoff = (uwarp_nocutoff @ gradv_warp_nocutoff)
+            tgrad_nocutoff = u_nocutoff @ gradv_nocutoff
+            tgrad_warp_nocutoff = u_nocutoff @ gradv_warp_nocutoff
 #
         self._ensemble_data["Weight"].append(weight)
 
@@ -198,6 +196,7 @@ class DMCLogger:
 
     def output(self):
         weights = np.array(self._ensemble_data["Weight"])
+        weights = np.ones(weights.shape)
 
         # for S, T and J: save a partial history of ensemble averages
         for key in self._histories:

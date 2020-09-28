@@ -20,15 +20,18 @@ class SRBrancher(Brancher):
 
     def perform_branching(self, walkers):
         weights = np.array([walker.weight for walker in walkers])
-        weights /= weights.sum()
         global_weight = np.mean(weights)
+        weights /= global_weight
         new_walkers = random.choices(walkers, weights=weights, k=len(walkers))
-        for walker in new_walkers:
-            walker.weight = global_weight
-        
+
         # random.choices returns references to original objects, which
         # reduces the population size. Copy each walker to prevent this.
-        return [copy.deepcopy(walker) for walker in new_walkers]
+        new_walkers = [copy.deepcopy(walker) for walker in new_walkers]
+
+        for walker in new_walkers:
+            walker.weight = 1.0
+        
+        return new_walkers
 
 
 class SimpleBrancher(Brancher):

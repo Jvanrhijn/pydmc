@@ -56,8 +56,6 @@ class DMC:
             
             block_energies = self._run_block(steps_per_block, b, neq, time_step)
 
-            self._brancher.perform_branching(self._walkers)
-
             block_average_energy = np.mean(block_energies)
 
             if verbose:
@@ -79,14 +77,13 @@ class DMC:
 
         for i in range(steps_per_block):
 
-            ensemble_energy = 0
-            total_weight = 0
+            ensemble_energies = np.zeros(len(self._walkers))
 
             for iwalker, walker in enumerate(self._walkers):
+
                 self._confs.append(walker.configuration)
                 local_energy = self._update_walker(walker, time_step)
-                ensemble_energy += walker.weight*local_energy
-                total_weight += walker.weight
+                ensemble_energies[iwalker] = local_energy
 
                 if self.force_accumulators is not None and b >= neq:
                     # accumulate samples over an ensemble
@@ -106,16 +103,21 @@ class DMC:
                 for fa in self.force_accumulators:
                     fa.output()
 
-            ensemble_energy /= total_weight
-            block_energies[i] = ensemble_energy
+            self._walkers = self._brancher.perform_branching(self._walkers)
 
+            # perform ensemble averaging just after reconfiguration,
+            # when all weights are unity
+            # TODO: somehow don't recompute local energies
+            ensemble_energies = [self._hamiltonian(self._guiding_wf, w.configuration)/self._guiding_wf(w.configuration) for w in self._walkers]
+            ensemble_energy = np.average(ensemble_energies, weights=[w.weight for w in self._walkers])
+            block_energies[i] = ensemble_energy
             self._energy_all.append(ensemble_energy)
 
+
             if b < neq:
-                self._reference_energy = 0.5 * (self._reference_energy + ensemble_energy)
+               self._reference_energy = 0.5 * (self._reference_energy + ensemble_energy)
 
         return block_energies
-
 
     def _update_walker(self, walker, time_step):
         xold = walker.configuration
