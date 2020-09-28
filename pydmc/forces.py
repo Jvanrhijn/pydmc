@@ -104,7 +104,7 @@ class VMCForcesInput:
         # pulay force
         force_pulay = -(2 * (el_times_logpsi_grad - energy * logpsi_grad))
         force_pulay_warp = -(2 * (el_times_logpsi_grad_warp - energy * logpsi_grad_warp) \
-                                + el_times_logjac_grad - energy * logjac_grad)
+                                + (el_times_logjac_grad - energy * logjac_grad))
         #force_pulay_warp = -(local_energy - energy) * (2*psilogderiv_warp + jac_deriv)
 
         # TODO:

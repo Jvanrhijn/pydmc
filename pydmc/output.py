@@ -63,7 +63,7 @@ class VMCLogger:
                 "grad_a log Jacobian": math.log(abs(jac))/self._da,
                 "E_L * grad_a log Psi": eloc*logpsi_grada,
                 "E_L * grad_a log Psi (warp)": eloc*logpsi_grada_warp,
-                "E_L * grad_a log Jacobian": math.log(abs(jac))/self._da,
+                "E_L * grad_a log Jacobian": eloc*math.log(abs(jac))/self._da,
                 "Local energy": eloc,
                 "grad_a E_L": el_grad,
                 "grad_a E_L (warp)": el_grad_warp,
