@@ -114,7 +114,6 @@ class DMC:
             block_energies[i] = ensemble_energy
             self._energy_all.append(ensemble_energy)
 
-
             if b < neq:
                self._reference_energy = 0.5 * (self._reference_energy + ensemble_energy)
 
@@ -160,18 +159,3 @@ class DMC:
         self._energy_cumulative.append(energy_prev + (energy_new - energy_prev) / (idx + 2))
         self._variance.append(self._variance[-1] + ((energy_new - energy_prev)*(energy_new - self._energy_cumulative[-1]))/(idx + 1))
         self._error.append(math.sqrt(self._variance[-1] / (idx + 1)))
-
-
-class Accumulator:
-
-    def __init__(self, observables):
-        self.observables = observables
-        self.observables_data = {name: [] for name in observables}
-        self.ref_energy = []
-        self.weights = []
-
-    def sample_observables(self, guiding_wf, walker):
-        self.weights.append(walker.weight)
-        for name, function in self.observables.items():
-            sample = function(guiding_wf, walker.configuration)
-            self.observables_data[name].append(sample)

@@ -3,6 +3,7 @@ from pydmc.node_warp import *
 from collections import deque
 import pprint
 from collections import defaultdict
+import h5py
 
 
 class VMCLogger:
@@ -10,9 +11,21 @@ class VMCLogger:
     def __init__(self, da, outfile, cutoff=lambda d: (0, 0, 0), pathak_sequence=[1e-3, 5e-3, 1e-2]):
         self._da = da
         self._cutoff = cutoff
-        self._outfile = open(outfile, "w")
+        #self._outfile = open(outfile, "w")
         self._start_time = datetime.now()
         self._pathak_sequence = pathak_sequence
+        self._block_data = defaultdict(list)
+
+        self._outfile = h5py.File(outfile, "w")
+        scalar_keys = ["Psi", "Psi (secondary)", "Jacobian", "Psi (secondary, warp)", \
+            "Local energy", "Local energy (secondary)", "Local energy (secondary, warp)", "da"
+        ]
+        vector_keys = ["Configuration", "Gradpsi", "Gradpsi (secondary)"]
+
+        for key in scalar_keys:
+            self._outfile.create_dataset(key, (1, 1), maxshape=(None, 1), chunks=(1, 1))
+        for key in vector_keys:
+            self._outfile.create_dataset(key, (1, 2), maxshape=(None, 2), chunks=(1, 2))
 
     def accumulate_samples(self, conf, psi, hamiltonian, tau):
         x = conf
@@ -35,7 +48,7 @@ class VMCLogger:
         eloc_prime = hamiltonian(psi_sec, x) / psisec_val
         eloc_prime_warp = hamiltonian(psi_sec, xwarp) / psisec_val_warp
 
-        outdict = {
+        block_data = {
                 "Configuration": x,
                 "Psi": psival,
                 "Gradpsi": psigrad,
@@ -46,13 +59,34 @@ class VMCLogger:
                 "Local energy": eloc,
                 "Local energy (secondary)": eloc_prime,
                 "Local energy (secondary, warp)": eloc_prime_warp,
-                "Pathak regularizer": [
-                    7*(d/eps)**6 - 15*(d/eps)**4 + 9*(d/eps)**2 if (d/eps) < 1 else 1.0 for eps in self._pathak_sequence
-                ],
+                #"Pathak regularizer": [
+                    #7*(d/eps)**6 - 15*(d/eps)**4 + 9*(d/eps)**2 if (d/eps) < 1 else 1.0 for eps in self._pathak_sequence
+                #],
                 "da": self._da
         }
 
-        self._outfile.write(str(outdict) + "\n")
+        for key, value in block_data.items():
+            self._block_data[key].append(value)
+
+    def output(self):
+        # resize data sets
+        self._outfile.visititems(self.resize)
+
+        # update 
+        for key, value in self._block_data.items():
+            self._outfile[key][-1] = np.mean(value)
+
+        self._block_data = defaultdict(list)
+
+    @staticmethod
+    def resize(name, node):
+        if isinstance(node, h5py.Dataset):
+            node.resize((node.shape[0]+1, node.shape[1]))
+        else:
+            pass
+
+    def close_file(self):
+        self._outfile.close()
 
 
 class DMCLogger:

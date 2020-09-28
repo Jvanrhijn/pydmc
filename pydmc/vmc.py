@@ -26,7 +26,7 @@ class VMC:
         self.force_accumulators = force_accumulators
         self._velocity_cutoff = velocity_cutoff
 
-    def run_vmc(self, time_step, num_blocks, steps_per_block, accumulator=None, neq=1, progress=True):
+    def run_vmc(self, time_step, num_blocks, steps_per_block, neq=1, progress=True):
 
         if progress:
             range_wrapper = tqdm.tqdm
@@ -59,8 +59,14 @@ class VMC:
             if b >= neq:
                 block_average_energy = np.mean(block_energies)
                 self.update_energy_estimate(block_average_energy)
+            
+            if self.force_accumulators is not None and b >= neq:
+                for fa in self.force_accumulators:
+                    fa.output()
 
-        return accumulator
+        if self.force_accumulators is not None:
+            for fa in self.force_accumulators:
+                fa.close_file()
 
     def _update(self, time_step):
         xold = copy.deepcopy(self._conf)

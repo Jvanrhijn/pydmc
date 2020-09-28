@@ -1,6 +1,7 @@
 import numpy as np
 import pprint as pp
 import tqdm
+import h5py
 
 from pydmc.util import flatten, munu, velocity_cutoff_umrigar
 from pydmc.node_warp import *
@@ -75,40 +76,23 @@ class ForcesVMCSorella:
 
 class VMCForcesInput:
 
-    def _retrieve_data(self, fpath):
-        from numpy import array
-        num_lines = sum(1 for line in open(fpath))
-        data = {}
-        with open(fpath, "r") as file:
-            for line in tqdm.tqdm(file, total=num_lines):
-                # this makes me want to cry
-                ldata = eval(line)
-                if not data:
-                    for key, value in ldata.items():
-                        data[key] = [value]
-                else:
-                    for key, value in ldata.items():
-                        data[key].append(value)
-        for key, value in data.items():
-            data[key] = np.array(value)
-        return data
-
     def compute_forces(self, fpath):
-        data = self._retrieve_data(fpath)
+        #data = self._retrieve_data(fpath)
+        data = h5py.File(fpath, "r")
 
-        da = data["da"].flatten()
-        local_energy = data["Local energy"]
-        local_energy_sec = data["Local energy (secondary)"]
-        local_energy_sec_warp = data["Local energy (secondary, warp)"]
+        da = data["da"].value[1:].flatten()
+        local_energy = data["Local energy"].value[1:]
+        local_energy_sec = data["Local energy (secondary)"].value[1:]
+        local_energy_sec_warp = data["Local energy (secondary, warp)"].value[1:]
 
-        psi = data["Psi"]
-        psi_sec = data["Psi (secondary)"]
-        psi_sec_warp = data["Psi (secondary, warp)"]
+        psi = data["Psi"].value[1:]
+        psi_sec = data["Psi (secondary)"].value[1:]
+        psi_sec_warp = data["Psi (secondary, warp)"].value[1:]
         
-        jac = data["Jacobian"]
+        jac = data["Jacobian"].value[1:]
 
         # TODO: need to do this for sequence of epsilon
-        pathak = data["Pathak regularizer"][:, 0]
+        #pathak = data["Pathak regularizer"][:, 0]
 
         # compute local e derivative
         local_e_deriv = (local_energy_sec - local_energy) / da
@@ -128,7 +112,9 @@ class VMCForcesInput:
         energy = np.mean(local_energy)
         force_pulay = -(local_energy - energy) * 2*psilogderiv
         force_pulay_warp = -(local_energy - energy) * (2*psilogderiv_warp + jac_deriv)
-        force_pulay_pathak = -(local_energy - energy) * 2*psilogderiv * pathak
+        force_pulay_pathak = -(local_energy - energy) * 2*psilogderiv * 1#pathak
+
+        data.close()
 
         return force_hf, force_pulay, force_hf_warp, force_pulay_warp, force_pulay_pathak
 
