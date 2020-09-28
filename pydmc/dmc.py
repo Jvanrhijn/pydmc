@@ -81,10 +81,6 @@ class DMC:
 
             for iwalker, walker in enumerate(self._walkers):
 
-                self._confs.append(walker.configuration)
-                local_energy = self._update_walker(walker, time_step)
-                ensemble_energies[iwalker] = local_energy
-
                 if self.force_accumulators is not None and b >= neq:
                     # accumulate samples over an ensemble
                     for fa in self.force_accumulators:
@@ -98,6 +94,11 @@ class DMC:
                             self._velocity_cutoff,
                             len(self._walkers)
                         )
+
+                self._confs.append(walker.configuration)
+                local_energy = self._update_walker(walker, time_step)
+                ensemble_energies[iwalker] = local_energy
+
 
             if self.force_accumulators is not None and b >= neq:
                 for fa in self.force_accumulators:
