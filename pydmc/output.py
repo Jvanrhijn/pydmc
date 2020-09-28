@@ -125,7 +125,7 @@ class DMCLogger:
         eloc_prime_prev_warp = hamiltonian(psi_sec, xprev_warp) / psi_sec(xprev_warp)
 
         snocutoff = (eref - 0.5 * (eloc_prev + eloc)) * tau
-        ssecnocutoff = (eref - 0.5 * (eloc_prime + eloc_prime_prev))
+        ssecnocutoff = (eref - 0.5 * (eloc_prime + eloc_prime_prev)) * tau
         ssecnocutoff_warp = (eref - 0.5 * (eloc_prime_warp + eloc_prime_prev_warp)) * tau
 
         vbar = velocity_cutoff(v, tau)
@@ -155,7 +155,6 @@ class DMCLogger:
 
             gradv = (velocity_cutoff(vsec_prev, tau) - velocity_cutoff(vprev, tau)) / self._da
             gradv_warp = (velocity_cutoff(vsec_warp_prev, tau) - velocity_cutoff(vprev, tau)) / self._da
-            #gradv_warp = (vsec_warp_prev - vprev) / self._da
 
             tgrad = u @ gradv
             tgrad_warp = u @ gradv_warp
