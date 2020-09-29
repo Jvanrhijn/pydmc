@@ -71,6 +71,9 @@ class DMC:
                 self.update_energy_estimate(block_average_energy)
                 self._reference_energy = (self._reference_energy + self._energy_cumulative[-1]) / 2
 
+        if self.force_accumulators is not None:
+            for fa in self.force_accumulators:
+                fa.close_file()
 
     def _run_block(self, steps_per_block, b, neq, time_step):
         block_energies = np.zeros(steps_per_block)
@@ -102,7 +105,7 @@ class DMC:
 
             if self.force_accumulators is not None and b >= neq:
                 for fa in self.force_accumulators:
-                    fa.output()
+                    fa.average_ensemble()
 
             self._walkers = self._brancher.perform_branching(self._walkers)
 
@@ -116,6 +119,10 @@ class DMC:
 
             if b < neq:
                self._reference_energy = 0.5 * (self._reference_energy + ensemble_energy)
+
+        if self.force_accumulators is not None and b >= neq:
+            for fa in self.force_accumulators:
+                fa.output()
 
         return block_energies
 
