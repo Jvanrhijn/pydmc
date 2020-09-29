@@ -68,7 +68,10 @@ class SplitJoinBrancher(Brancher):
         for walker in to_split:
             num_new_walkers = math.floor(walker.weight)
             new_weight = walker.weight / num_new_walkers
-            new_walkers.append(Walker(walker.configuration, new_weight))
+            #new_walkers.append(Walker(walker.configuration, new_weight))
+            new_walker = copy.deepcopy(walker)
+            new_walker.weight = new_weight
+            new_walkers.append(new_walker)
         
         # perform joining
         for i in range(0, len(to_split), 2):
@@ -87,7 +90,10 @@ class SplitJoinBrancher(Brancher):
             p1 = w1.weight / new_weight
             p2 = 1 - p1
             w = np.random.choice(chunk, p=[p1, p2])
-            new_walkers.append(Walker(w.configuration, new_weight))
+            new_walker = copy.deepcopy(w)
+            new_walker.weight = new_weight
+            new_walkers.append(new_walker)
+            #new_walkers.append(Walker(w.configuration, new_weight))
 
         return new_walkers
 

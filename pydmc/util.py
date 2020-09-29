@@ -16,6 +16,10 @@ class circularlist(object):
         self.size = size
         self._data = list(data)[-size:]
 
+    @property
+    def maxlen(self):
+        return self.size
+
     def append(self, value):
         """Append an element"""
         if len(self._data) == self.size:
@@ -34,6 +38,11 @@ class circularlist(object):
     def __repr__(self):
         """Return string representation"""
         return self._data.__repr__() + ' (' + str(len(self._data))+' items)'
+
+    def __len__(self):
+        """Return length of internal list"""
+        return len(self._data)
+
 
 
 def gradient_fd(fun, x, dx=1e-5):

@@ -131,6 +131,9 @@ class DiffuseAcceptRejectDMC(AcceptReject):
 
         # reject if node is crossed and we're doing FN-DMC
         if self._fixed_node and math.copysign(1, value_old) != math.copysign(1, value_new):
+            walker.configuration = x
+            walker.value = value_old
+            walker.gradient = grad_old
             return walker
 
         try_num = np.exp(-np.linalg.norm(x - xprop - drift_new*time_step)**2 / (2*time_step))

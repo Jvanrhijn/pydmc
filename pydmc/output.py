@@ -269,21 +269,16 @@ class DMCLogger(HDF5Logger):
         self._ensemble_data["E_L * grad_a Log Jacobian"].append(eloc * math.log(abs(jac)) / self._da)
 
     def average_ensemble(self):
-        weights = np.array(self._ensemble_data["Weight"])
-        weights = np.ones(weights.shape)
-
-        # TODO: this step is a bottleneck, improve it
-        # for S, T and J: save a partial history of ensemble averages
+        # for S, T and J: save a partial history
         for key in self._histories:
-            # push the new data into the queue for each walker
             for iwalker in range(len(self._ensemble_data[key])):
                 history = self._histories[key][iwalker]
                 # sum over the history
-                # If history not yet complete, sum over all points (O(N_b)):
+                # If history not yet complete, add latest point
                 if len(history) < history.maxlen:
                     history.append(self._ensemble_data[key][iwalker])
-                    self._history_sum[key][iwalker] += self._ensemble_data[key][iwalker] #sum(history)
-                # Otherwise, just subtract the oldest and add the newest (still O(N_b) since we have to pop)
+                    self._history_sum[key][iwalker] += history[-1]
+                # Otherwise, subtract the oldest and then add the newest 
                 else:                        
                     self._history_sum[key][iwalker] -= history[0]
                     history.append(self._ensemble_data[key][iwalker])
@@ -297,7 +292,7 @@ class DMCLogger(HDF5Logger):
 
         # average all collected data over the ensemble of walkers
         for key, value in self._ensemble_data.items():
-            self._ensemble_data[key] = np.average(value, weights=weights)
+            self._ensemble_data[key] = np.mean(value)
             
         # write the ensemble averages to block storage
         for key in self._ensemble_data:

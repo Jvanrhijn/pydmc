@@ -29,7 +29,6 @@ class DMC:
         self._energy_all = []
         self._energy_cumulative = [reference_energy]
         self._variance = [0.0]
-        self._confs = []
         self._error = [0.0]
 
         self.force_accumulators = force_accumulators
@@ -98,10 +97,8 @@ class DMC:
                             len(self._walkers)
                         )
 
-                self._confs.append(walker.configuration)
                 local_energy = self._update_walker(walker, time_step)
                 ensemble_energies[iwalker] = local_energy
-
 
             if self.force_accumulators is not None and b >= neq:
                 for fa in self.force_accumulators:
