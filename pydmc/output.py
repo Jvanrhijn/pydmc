@@ -1,5 +1,6 @@
 from datetime import datetime
 from pydmc.node_warp import *
+from pydmc.util import circularlist
 from collections import deque
 import pprint
 from collections import defaultdict
@@ -148,6 +149,8 @@ class DMCLogger(HDF5Logger):
                 "grad_a sum Log Jacobian": [deque(maxlen=lag) for _ in range(nwalkers)],
         }
 
+        self._history_sum = {key: [0 for _ in range(nwalkers)] for key in self._histories}
+
         for key in scalar_keys:
             self._outfile.create_dataset(key, (1, 1), maxshape=(None, 1), chunks=(1, 1))
 
@@ -269,14 +272,26 @@ class DMCLogger(HDF5Logger):
         weights = np.array(self._ensemble_data["Weight"])
         weights = np.ones(weights.shape)
 
+        # TODO: this step is a bottleneck, improve it
         # for S, T and J: save a partial history of ensemble averages
         for key in self._histories:
             # push the new data into the queue for each walker
             for iwalker in range(len(self._ensemble_data[key])):
-                self._histories[key][iwalker].append(self._ensemble_data[key][iwalker])
+                history = self._histories[key][iwalker]
                 # sum over the history
-                self._ensemble_data[key][iwalker] = sum(self._histories[key][iwalker])
-                # compute E_L * sum over history
+                # If history not yet complete, sum over all points (O(N_b)):
+                if len(history) < history.maxlen:
+                    history.append(self._ensemble_data[key][iwalker])
+                    self._history_sum[key][iwalker] += self._ensemble_data[key][iwalker] #sum(history)
+                # Otherwise, just subtract the oldest and add the newest (still O(N_b) since we have to pop)
+                else:                        
+                    self._history_sum[key][iwalker] -= history[0]
+                    history.append(self._ensemble_data[key][iwalker])
+                    self._history_sum[key][iwalker] += history[-1]
+
+                # Plug history sums into ensemble
+                self._ensemble_data[key][iwalker] = self._history_sum[key][iwalker]
+                # compute E_L * sum over history and plug into ensemble
                 eloc = self._ensemble_data["Local energy"][iwalker]
                 self._ensemble_data["E_L * " + key].append(eloc * self._ensemble_data[key][iwalker])
 
