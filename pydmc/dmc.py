@@ -60,7 +60,7 @@ class DMC:
             if verbose:
                 outstring = f"Time elapsed: {datetime.now() - start_time}"
                 outstring += f" | Block: {str(b+1).zfill(1+math.ceil(math.log10(num_blocks)))}/{num_blocks} | "
-                outstring += f"Energy estimate: {self._energy_cumulative[-1]:.5f} +- {self._error[-1]:.5f}"
+                outstring += f"Energy estimate: {self.energy_estimate[-1]:.5f} +- {self._error[-1]:.5f}"
                 outstring += f" | Block energy: {block_average_energy:.5f}"
                 outstring += f" | Trial energy: {self._energy_cumulative[0]:.5f}"
                 print(outstring)
