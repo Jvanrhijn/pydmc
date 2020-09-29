@@ -109,9 +109,7 @@ class DMCLogger(HDF5Logger):
         super().__init__(outfile)
         self._da = da
         self._cutoff = cutoff
-        #self._outfile = open(outfile, "w")
         self._counter = 0
-        self._steps_per_block = lag
         self._ensemble_data = defaultdict(list)
         self._block_data = defaultdict(list)
 
@@ -158,14 +156,6 @@ class DMCLogger(HDF5Logger):
 
 
     def accumulate_samples(self, iwalker, walker, psi, hamiltonian, eref, tau, velocity_cutoff, num_walkers):
-        if self._counter == 0:
-            self._outfile["Walkers"] = num_walkers
-            self._outfile["Time step"] = tau
-            self._outfile["Steps per block"] = self._steps_per_block
-            #3(f"Number of walkers: {num_walkers} | Time step: {tau} | Steps per block: {self._steps_per_block}\n")
-
-        self._counter += 1
-
         x = walker.configuration
         xprev = walker.previous_configuration
         weight = walker.weight 
@@ -238,10 +228,8 @@ class DMCLogger(HDF5Logger):
             gradv = (velocity_cutoff(vsec_prev, tau) - velocity_cutoff(vprev, tau)) / self._da
             gradv_warp = (velocity_cutoff(vsec_warp_prev, tau) - velocity_cutoff(vprev, tau)) / self._da
 
-            tgrad = u @ gradv \
-                - tau/2 * np.linalg.norm(velocity_cutoff(vsec_prev, tau) - velocity_cutoff(vprev, tau))**2 / self._da
-            tgrad_warp = u @ gradv_warp \
-                - tau/2 * np.linalg.norm(velocity_cutoff(vsec_warp_prev, tau) - velocity_cutoff(vprev, tau))**2 / self._da
+            tgrad = u @ gradv
+            tgrad_warp = u @ gradv_warp
 
             tgrad_nocutoff = u_nocutoff @ gradv_nocutoff
             tgrad_warp_nocutoff = u_nocutoff @ gradv_warp_nocutoff

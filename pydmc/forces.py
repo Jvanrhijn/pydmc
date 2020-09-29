@@ -127,6 +127,9 @@ class DMCForcesInput:
         sderiv_sum = data["grad_a S"].value[1:]        
         sderiv_sum_warp = data["grad_a S (warp)"].value[1:]        
 
+        sderiv_sum_nocutoff = data["grad_a S (no cutoff)"].value[1:]        
+        sderiv_sum_warp_nocutoff = data["grad_a S (warp, no cutoff)"].value[1:]        
+
         tderiv_sum_nocutoff = data["grad_a T (no cutoff)"].value[1:]        
         tderiv_sum_warp_nocutoff = data["grad_a T (warp, no cutoff)"].value[1:]
 
@@ -140,6 +143,9 @@ class DMCForcesInput:
         # Get products of E_L and Green's function derivatives
         el_times_sderiv_sum = data["E_L * grad_a S"].value[1:] 
         el_times_sderiv_sum_warp = data["E_L * grad_a S (warp)"].value[1:]       
+
+        el_times_sderiv_sum_nocutoff = data["E_L * grad_a S (no cutoff)"].value[1:] 
+        el_times_sderiv_sum_warp_nocutoff = data["E_L * grad_a S (warp, no cutoff)"].value[1:]       
 
         el_times_tderiv_sum_nocutoff = data["E_L * grad_a T (no cutoff)"].value[1:]        
         el_times_tderiv_sum_warp_nocutoff = data["E_L * grad_a T (warp, no cutoff)"].value[1:]        
@@ -180,12 +186,12 @@ class DMCForcesInput:
 
         force_pulay_exact_nocutoff = -(
                     el_times_tderiv_sum_nocutoff - energy*tderiv_sum_nocutoff \
-                +   el_times_sderiv_sum - energy*sderiv_sum \
+                +   el_times_sderiv_sum_nocutoff - energy*sderiv_sum_nocutoff \
                 )
 
         force_pulay_exact_warp_nocutoff = -(
                     el_times_tderiv_sum_warp_nocutoff - energy*tderiv_sum_warp_nocutoff \
-                +   el_times_sderiv_sum_warp - energy*sderiv_sum_warp \
+                +   el_times_sderiv_sum_warp_nocutoff - energy*sderiv_sum_warp_nocutoff \
                 +   el_times_jderiv_sum - energy*jderiv_sum \
                 )
 
