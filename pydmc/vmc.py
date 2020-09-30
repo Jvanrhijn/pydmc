@@ -40,7 +40,9 @@ class VMC:
             for i in range(steps_per_block):
 
                 local_energy = self._update(time_step)
-                self._confs.append(self._conf)
+
+                if b >= neq:
+                    self._confs.append(self._conf)
 
                 if self.force_accumulators is not None and b >= neq:
                     for fa in self.force_accumulators:
