@@ -109,8 +109,8 @@ class DMC:
             # perform ensemble averaging just after reconfiguration,
             # when all weights are unity
             # TODO: somehow don't recompute local energies
-            ensemble_energies = [self._hamiltonian(self._guiding_wf, w.configuration)/self._guiding_wf(w.configuration) for w in self._walkers]
-            ensemble_energy = np.average(ensemble_energies, weights=[w.weight for w in self._walkers])
+            #ensemble_energies = [self._hamiltonian(self._guiding_wf, w.configuration)/self._guiding_wf(w.configuration) for w in self._walkers]
+            ensemble_energy = np.mean(ensemble_energies)
             block_energies[i] = ensemble_energy
             self._energy_all.append(ensemble_energy)
 
@@ -147,7 +147,7 @@ class DMC:
 
         walker.weight *= math.exp(0.5*(s + sprime)*time_step)
 
-        return local_energy_new
+        return local_energy_old
 
     @property
     def energy_estimate(self):
