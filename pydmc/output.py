@@ -274,21 +274,14 @@ class DMCLogger(HDF5Logger):
             for iwalker in range(len(self._ensemble_data[key])):
                 history = self._histories[key][iwalker]
                 # sum over the history
-                # If history not yet complete, add latest point
-                if len(history) < history.maxlen:
-                    history.append(self._ensemble_data[key][iwalker])
-                    self._history_sum[key][iwalker] += history[-1]
-                # Otherwise, subtract the oldest and then add the newest 
-                else:                        
-                    self._history_sum[key][iwalker] -= history[0]
-                    history.append(self._ensemble_data[key][iwalker])
-                    self._history_sum[key][iwalker] += history[-1]
+                history.append(self._ensemble_data[key][iwalker])
+                history_sum = sum(history)
 
                 # Plug history sums into ensemble
-                self._ensemble_data[key][iwalker] = self._history_sum[key][iwalker]
+                self._ensemble_data[key][iwalker] = history_sum
                 # compute E_L * sum over history and plug into ensemble
                 eloc = self._ensemble_data["Local energy"][iwalker]
-                self._ensemble_data["E_L * " + key].append(eloc * self._ensemble_data[key][iwalker])
+                self._ensemble_data["E_L * " + key].append(eloc * history_sum)
 
         # average all collected data over the ensemble of walkers
         for key, value in self._ensemble_data.items():
