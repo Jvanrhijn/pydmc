@@ -102,7 +102,7 @@ class DMC:
 
             if self.force_accumulators is not None and b >= neq:
                 for fa in self.force_accumulators:
-                    fa.average_ensemble()
+                    fa.average_ensemble(self._walkers)
 
             self._walkers = self._brancher.perform_branching(self._walkers)
 

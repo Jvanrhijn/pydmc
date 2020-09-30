@@ -106,7 +106,7 @@ class VMCLogger(HDF5Logger):
 
 class DMCLogger(HDF5Logger):
 
-    def __init__(self, da, outfile, lag, nwalkers, cutoff=lambda d: (0, 0, 0)):
+    def __init__(self, da, outfile, nwalkers, cutoff=lambda d: (0, 0, 0)):
         super().__init__(outfile)
         self._da = da
         self._cutoff = cutoff
@@ -137,24 +137,22 @@ class DMCLogger(HDF5Logger):
             "E_L * grad_a Log Jacobian"
         ]
 
-        self._histories = {
-                "grad_a S": [deque(maxlen=lag) for _ in range(nwalkers)],
-                "grad_a T": [deque(maxlen=lag) for _ in range(nwalkers)],
-                "grad_a S (warp)": [deque(maxlen=lag) for _ in range(nwalkers)],
-                "grad_a T (warp)": [deque(maxlen=lag) for _ in range(nwalkers)],
-                "grad_a S (no cutoff)": [deque(maxlen=lag) for _ in range(nwalkers)],
-                "grad_a T (no cutoff)": [deque(maxlen=lag) for _ in range(nwalkers)],
-                "grad_a S (warp, no cutoff)": [deque(maxlen=lag) for _ in range(nwalkers)],
-                "grad_a T (warp, no cutoff)": [deque(maxlen=lag) for _ in range(nwalkers)],
-                "grad_a sum Log Jacobian": [deque(maxlen=lag) for _ in range(nwalkers)],
-        }
-
-        self._history_sum = {key: [0 for _ in range(nwalkers)] for key in self._histories}
+        history_keys = [
+                "grad_a S",
+                "grad_a T",
+                "grad_a S (warp)",
+                "grad_a T (warp)",
+                "grad_a S (no cutoff)",
+                "grad_a T (no cutoff)",
+                "grad_a S (warp, no cutoff)",
+                "grad_a T (warp, no cutoff)",
+                "grad_a sum Log Jacobian",
+        ]
 
         for key in scalar_keys:
             self._outfile.create_dataset(key, (1, 1), maxshape=(None, 1), chunks=(1, 1))
 
-        for key in self._histories:
+        for key in history_keys:
             self._outfile.create_dataset("E_L * " + key, (1, 1), maxshape=(None, 1), chunks=(1, 1))
 
 
@@ -268,17 +266,22 @@ class DMCLogger(HDF5Logger):
         self._ensemble_data["grad_a Log Jacobian"].append(math.log(abs(jac)) / self._da)
         self._ensemble_data["E_L * grad_a Log Jacobian"].append(eloc * math.log(abs(jac)) / self._da)
 
-    def average_ensemble(self):
-        # for S, T and J: save a partial history
-        for key in self._histories:
-            for iwalker in range(len(self._ensemble_data[key])):
-                history = self._histories[key][iwalker]
-                # sum over the history
+    def average_ensemble(self, walkers):
+        # for S, T and J: save a partial history in the walkers
+        for key in walkers[0].histories:
+            for iwalker in range(len(walkers)):
+                # grab the history of this walker
+                history = walkers[iwalker].histories[key]
+
+                # add new data to walker history
                 history.append(self._ensemble_data[key][iwalker])
+
+                # sum over the history of this walker
                 history_sum = sum(history)
 
                 # Plug history sums into ensemble
                 self._ensemble_data[key][iwalker] = history_sum
+
                 # compute E_L * sum over history and plug into ensemble
                 eloc = self._ensemble_data["Local energy"][iwalker]
                 self._ensemble_data["E_L * " + key].append(eloc * history_sum)

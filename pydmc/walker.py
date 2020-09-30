@@ -1,9 +1,10 @@
 import numpy
+from collections import deque
 
 
 class Walker:
 
-    def __init__(self, configuration, weight):
+    def __init__(self, configuration, weight, lag=1):
         self._configuration = configuration
         self._weight = weight
         self._configuration_prev = None
@@ -12,6 +13,17 @@ class Walker:
         self._gradient = None
         self._previous_value = None
         self._previous_gradient = None
+        self.histories = {
+                "grad_a S": deque(maxlen=lag),
+                "grad_a T": deque(maxlen=lag),
+                "grad_a S (warp)": deque(maxlen=lag),
+                "grad_a T (warp)": deque(maxlen=lag),
+                "grad_a S (no cutoff)": deque(maxlen=lag),
+                "grad_a T (no cutoff)": deque(maxlen=lag),
+                "grad_a S (warp, no cutoff)": deque(maxlen=lag),
+                "grad_a T (warp, no cutoff)": deque(maxlen=lag),
+                "grad_a sum Log Jacobian": deque(maxlen=lag),
+        }
 
     @property
     def value(self):
