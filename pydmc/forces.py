@@ -80,20 +80,20 @@ class VMCForcesInput:
         #data = self._retrieve_data(fpath)
         data = h5py.File(fpath, "r")
 
-        local_energy = data["Local energy"].value[1:]
+        local_energy = data["Local energy"][()][1:]
         energy = np.mean(local_energy)
 
-        el_grad = data["grad_a E_L"].value[1:]
-        el_grad_warp = data["grad_a E_L (warp)"].value[1:]
+        el_grad = data["grad_a E_L"][()][1:]
+        el_grad_warp = data["grad_a E_L (warp)"][()][1:]
 
-        logpsi_grad = data["grad_a log Psi"].value[1:]
-        logpsi_grad_warp = data["grad_a log Psi (warp)"].value[1:]
+        logpsi_grad = data["grad_a log Psi"][()][1:]
+        logpsi_grad_warp = data["grad_a log Psi (warp)"][()][1:]
 
-        el_times_logpsi_grad = data["E_L * grad_a log Psi"].value[1:]
-        el_times_logpsi_grad_warp = data["E_L * grad_a log Psi (warp)"].value[1:]
+        el_times_logpsi_grad = data["E_L * grad_a log Psi"][()][1:]
+        el_times_logpsi_grad_warp = data["E_L * grad_a log Psi (warp)"][()][1:]
         
-        logjac_grad = data["grad_a log Jacobian"].value[1:]
-        el_times_logjac_grad = data["E_L * grad_a log Jacobian"].value[1:]
+        logjac_grad = data["grad_a log Jacobian"][()][1:]
+        el_times_logjac_grad = data["E_L * grad_a log Jacobian"][()][1:]
 
         # TODO: need to do this for sequence of epsilon
         #pathak = data["Pathak regularizer"][:, 0]
@@ -120,53 +120,53 @@ class DMCForcesInput:
     def compute_forces(self, fpath, wagner=False):
         data = h5py.File(fpath, "r")
 
-        energy = np.mean(data["Local energy"].value[1:])
-        #weights = data["Weight"].value[1:]
+        energy = np.mean(data["Local energy"][()][1:])
+        #weights = data["Weight"][()][1:]
 
         # Get Green's function derivatives
-        sderiv_sum = data["grad_a S"].value[1:]        
-        sderiv_sum_warp = data["grad_a S (warp)"].value[1:]        
+        sderiv_sum = data["grad_a S"][()][1:]        
+        sderiv_sum_warp = data["grad_a S (warp)"][()][1:]        
 
-        sderiv_sum_nocutoff = data["grad_a S (no cutoff)"].value[1:]        
-        sderiv_sum_warp_nocutoff = data["grad_a S (warp, no cutoff)"].value[1:]        
+        sderiv_sum_nocutoff = data["grad_a S (no cutoff)"][()][1:]        
+        sderiv_sum_warp_nocutoff = data["grad_a S (warp, no cutoff)"][()][1:]        
 
-        tderiv_sum_nocutoff = data["grad_a T (no cutoff)"].value[1:]        
-        tderiv_sum_warp_nocutoff = data["grad_a T (warp, no cutoff)"].value[1:]
+        tderiv_sum_nocutoff = data["grad_a T (no cutoff)"][()][1:]        
+        tderiv_sum_warp_nocutoff = data["grad_a T (warp, no cutoff)"][()][1:]
 
-        tderiv_sum = data["grad_a T"].value[1:]
-        tderiv_sum_warp = data["grad_a T (warp)"].value[1:]        
+        tderiv_sum = data["grad_a T"][()][1:]
+        tderiv_sum_warp = data["grad_a T (warp)"][()][1:]        
 
         # Get Jacobian (sum) derivative
-        jderiv_sum = data["grad_a sum Log Jacobian"].value[1:]
-        jac_logderiv = data["grad_a Log Jacobian"].value[1:]
+        jderiv_sum = data["grad_a sum Log Jacobian"][()][1:]
+        jac_logderiv = data["grad_a Log Jacobian"][()][1:]
 
         # Get products of E_L and Green's function derivatives
-        el_times_sderiv_sum = data["E_L * grad_a S"].value[1:] 
-        el_times_sderiv_sum_warp = data["E_L * grad_a S (warp)"].value[1:]       
+        el_times_sderiv_sum = data["E_L * grad_a S"][()][1:] 
+        el_times_sderiv_sum_warp = data["E_L * grad_a S (warp)"][()][1:]       
 
-        el_times_sderiv_sum_nocutoff = data["E_L * grad_a S (no cutoff)"].value[1:] 
-        el_times_sderiv_sum_warp_nocutoff = data["E_L * grad_a S (warp, no cutoff)"].value[1:]       
+        el_times_sderiv_sum_nocutoff = data["E_L * grad_a S (no cutoff)"][()][1:] 
+        el_times_sderiv_sum_warp_nocutoff = data["E_L * grad_a S (warp, no cutoff)"][()][1:]       
 
-        el_times_tderiv_sum_nocutoff = data["E_L * grad_a T (no cutoff)"].value[1:]        
-        el_times_tderiv_sum_warp_nocutoff = data["E_L * grad_a T (warp, no cutoff)"].value[1:]        
+        el_times_tderiv_sum_nocutoff = data["E_L * grad_a T (no cutoff)"][()][1:]        
+        el_times_tderiv_sum_warp_nocutoff = data["E_L * grad_a T (warp, no cutoff)"][()][1:]        
 
-        el_times_tderiv_sum = data["E_L * grad_a T"].value[1:]        
-        el_times_tderiv_sum_warp = data["E_L * grad_a T (warp)"].value[1:]        
+        el_times_tderiv_sum = data["E_L * grad_a T"][()][1:]        
+        el_times_tderiv_sum_warp = data["E_L * grad_a T (warp)"][()][1:]        
 
         # Get product of E_L and Jacobian (sum) derivative
-        el_times_jderiv_sum = data["E_L * grad_a sum Log Jacobian"].value[1:]
-        el_times_jac_logderiv = data["E_L * grad_a Log Jacobian"].value[1:]
+        el_times_jderiv_sum = data["E_L * grad_a sum Log Jacobian"][()][1:]
+        el_times_jac_logderiv = data["E_L * grad_a Log Jacobian"][()][1:]
 
         # Get local e derivative
-        local_e_deriv = data["grad_a E_L"].value[1:]
-        local_e_deriv_warp = data["grad_a E_L (warp)"].value[1:]
+        local_e_deriv = data["grad_a E_L"][()][1:]
+        local_e_deriv_warp = data["grad_a E_L (warp)"][()][1:]
 
         # Get psi derivative
-        psilogderiv = data["grad_a Log Psi"].value[1:]
-        psilogderiv_warp = data["grad_a Log Psi (warp)"].value[1:]
+        psilogderiv = data["grad_a Log Psi"][()][1:]
+        psilogderiv_warp = data["grad_a Log Psi (warp)"][()][1:]
 
-        el_times_psilogderiv = data["E_L * grad_a Log Psi"].value[1:]
-        el_times_psilogderiv_warp = data["E_L * grad_a Log Psi (warp)"].value[1:]
+        el_times_psilogderiv = data["E_L * grad_a Log Psi"][()][1:]
+        el_times_psilogderiv_warp = data["E_L * grad_a Log Psi (warp)"][()][1:]
 
         # Hellmann-Feynman force
         force_hf = -local_e_deriv
