@@ -267,6 +267,9 @@ class DMCLogger(HDF5Logger):
         self._ensemble_data["E_L * grad_a Log Jacobian"].append(eloc * math.log(abs(jac)) / self._da)
 
     def average_ensemble(self, walkers):
+        weights = self._ensemble_data["Weight"]
+        total_weight = sum(weights)
+
         # for S, T and J: save a partial history in the walkers
         for key in walkers[0].histories:
             for iwalker in range(len(walkers)):
@@ -288,11 +291,14 @@ class DMCLogger(HDF5Logger):
 
         # average all collected data over the ensemble of walkers
         for key, value in self._ensemble_data.items():
-            self._ensemble_data[key] = np.mean(value)
+            self._ensemble_data[key] = np.average(value, weights=weights)
             
         # write the ensemble averages to block storage
         for key in self._ensemble_data:
             self._block_data[key].append(self._ensemble_data[key])
+        
+        # for the weight, store the total weight
+        self._block_data["Weight"][-1] = total_weight
 
         # reset the ensemble data for the next run
         self._ensemble_data = defaultdict(list)
@@ -300,10 +306,14 @@ class DMCLogger(HDF5Logger):
     def output(self):
         # resize data sets
         self._outfile.visititems(self.resize)
+        weights = np.array(self._block_data["Weight"])
+        total_weight = np.sum(weights)
 
         # update output file with block averages
         for key, value in self._block_data.items():
-            self._outfile[key][-1] = np.mean(value)
+            self._outfile[key][-1] = np.average(value, weights=weights)
+
+        self._outfile["Weight"][-1] = total_weight
 
         # reset block data for next pass
         self._block_data = defaultdict(list)

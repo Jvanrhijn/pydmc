@@ -27,11 +27,11 @@ class DMC:
         self._initialize_walkers()
 
         self._reference_energy = reference_energy
-        self._energy_all = []
         self._energy_cumulative = [reference_energy]
+        self._energysq_cumulative = [reference_energy**2]
         self._variance = [0.0]
         self._error = [0.0]
-
+        self._total_weight = len(walkers)
         self.force_accumulators = force_accumulators
         self._velocity_cutoff = velocity_cutoff
 
@@ -44,6 +44,8 @@ class DMC:
     def run_dmc(self, time_step, num_blocks, steps_per_block, neq=1, progress=True, verbose=False):
         start_time = datetime.now()
 
+        self._total_weight *= steps_per_block
+
         if progress and verbose:
             raise ValueError("Can't output a progress bar and logging data")
 
@@ -54,9 +56,9 @@ class DMC:
 
         for b in range_wrapper(range(num_blocks)):
             
-            block_energies = self._run_block(steps_per_block, b, neq, time_step)
-
-            block_average_energy = np.mean(block_energies)
+            block_energies, block_weights = self._run_block(steps_per_block, b, neq, time_step)
+            block_average_energy = np.average(block_energies, weights=block_weights)
+            block_total_weight = np.sum(block_weights)
 
             if verbose:
                 outstring = f"Time elapsed: {datetime.now() - start_time}"
@@ -68,7 +70,7 @@ class DMC:
 
             # skip equilibration blocks
             if b >= neq:
-                self.update_energy_estimate(block_average_energy)
+                self.update_energy_estimate(block_average_energy, block_total_weight)
                 self._reference_energy = (self._reference_energy + self._energy_cumulative[-1]) / 2
 
         if self.force_accumulators is not None:
@@ -77,10 +79,12 @@ class DMC:
 
     def _run_block(self, steps_per_block, b, neq, time_step):
         block_energies = np.zeros(steps_per_block)
+        block_weights = np.zeros(steps_per_block)
 
         for i in range(steps_per_block):
 
             ensemble_energies = np.zeros(len(self._walkers))
+            weights = np.zeros(len(self._walkers))
 
             for iwalker, walker in enumerate(self._walkers):
 
@@ -100,18 +104,15 @@ class DMC:
 
                 local_energy = self._update_walker(walker, time_step)
                 ensemble_energies[iwalker] = local_energy
+                weights[iwalker] = walker.weight
 
             if self.force_accumulators is not None and b >= neq:
                 for fa in self.force_accumulators:
                     fa.average_ensemble(self._walkers)
 
-            self._walkers = self._brancher.perform_branching(self._walkers)
-
-            # perform ensemble averaging just after reconfiguration,
-            # when all weights are unity
-            ensemble_energy = np.mean(ensemble_energies)
+            ensemble_energy = np.average(ensemble_energies, weights=weights)
             block_energies[i] = ensemble_energy
-            self._energy_all.append(ensemble_energy)
+            block_weights[i] = np.sum(weights)
 
             if b < neq:
                self._reference_energy = 0.5 * (self._reference_energy + ensemble_energy)
@@ -120,7 +121,9 @@ class DMC:
             for fa in self.force_accumulators:
                 fa.output()
 
-        return block_energies
+        self._walkers = self._brancher.perform_branching(self._walkers)
+
+        return block_energies, block_weights
 
     def _update_walker(self, walker, time_step):
         xold = walker.configuration
@@ -146,7 +149,7 @@ class DMC:
 
         walker.weight *= math.exp(0.5*(s + sprime)*time_step)
 
-        return local_energy_old
+        return local_energy_new
 
     @property
     def energy_estimate(self):
@@ -156,9 +159,20 @@ class DMC:
     def energy_error(self):
         return np.array(self._error)
 
-    def update_energy_estimate(self, energy_new):
+    def update_energy_estimate(self, energy_new, weight_new):
         idx = len(self._energy_cumulative) - 1
         energy_prev = self._energy_cumulative[-1]
-        self._energy_cumulative.append(energy_prev + (energy_new - energy_prev) / (idx + 2))
-        self._variance.append(self._variance[-1] + ((energy_new - energy_prev)*(energy_new - self._energy_cumulative[-1]))/(idx + 1))
+
+        energysq_prev = self._energysq_cumulative[-1]
+
+        #self._energy_cumulative.append(energy_prev + (energy_new - energy_prev) / (idx + 2))
+        self._energy_cumulative.append((self._total_weight*energy_prev + weight_new*energy_new) / (self._total_weight + weight_new))
+        
+        self._energysq_cumulative.append((self._total_weight*energysq_prev + weight_new*energy_new**2) / (self._total_weight + weight_new))
+
+        #self._variance.append(self._energysq_cumulative[-1]**2 - self._energy_cumulative[-1])
+        self._variance.append(self._variance[-1] + weight_new*((energy_new - energy_prev)*(energy_new - self._energy_cumulative[-1]))/(self._total_weight + weight_new))
+
         self._error.append(math.sqrt(self._variance[-1] / (idx + 1)))
+
+        self._total_weight += weight_new

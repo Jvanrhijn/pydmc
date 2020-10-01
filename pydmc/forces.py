@@ -80,6 +80,8 @@ class VMCForcesInput:
         #data = self._retrieve_data(fpath)
         data = h5py.File(fpath, "r")
 
+        weights = data["Weight"][()][1:]
+
         local_energy = data["Local energy"][()][1:]
         energy = np.mean(local_energy)
 

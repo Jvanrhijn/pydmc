@@ -29,7 +29,7 @@ class SRBrancher(Brancher):
         new_walkers = [copy.deepcopy(walker) for walker in new_walkers]
 
         for walker in new_walkers:
-            walker.weight = 1.0
+            walker.weight = 1.0 #global_weight
         
         return new_walkers
 
@@ -39,27 +39,37 @@ class OptimalSRBrancher(Brancher):
     def perform_branching(self, walkers):
         weights = np.array([walker.weight for walker in walkers])
         global_weight = np.mean(weights)
-        weights /= global_weight
 
         positive_walkers = list(filter(lambda w: w.weight/global_weight > 1, walkers))
         negative_walkers = list(filter(lambda w: w.weight/global_weight < 1, walkers))
 
         num_reconf = int(sum(abs(w.weight / global_weight - 1) for w in positive_walkers) + np.random.uniform())
+        num_reconf = min(num_reconf, len(negative_walkers), len(positive_walkers))
+
+        pos_weights = np.array(list(w.weight for w in positive_walkers))
+        pos_weights /= pos_weights.sum()
+        neg_weights = np.array(list(w.weight for w in negative_walkers))
+        neg_weights /= neg_weights.sum()
 
         if num_reconf > 0:
-            to_duplicate = random.sample([i for i in range(len(positive_walkers))], num_reconf)
-            to_destroy = random.sample([i for i in range(len(negative_walkers))], num_reconf)
 
+            # acquire a random set of walkers to duplicate and one to destroy
+            to_duplicate = np.random.choice(list(range(len(positive_walkers))), size=num_reconf, p=None, replace=False)
+            to_destroy = np.random.choice(list(range(len(negative_walkers))), size=num_reconf, p=None, replace=False)
+
+            # destroy the chosen negative walkers
             for i in sorted(to_destroy)[::-1]:
                 del negative_walkers[i]
 
+            # duplicate the chosen positive walkers
             for i in to_duplicate:
                 positive_walkers.append(copy.deepcopy(positive_walkers[i]))
 
         new_walkers = negative_walkers + positive_walkers
 
+        # reset walker weights to unity
         for walker in new_walkers:
-            walker.weight = 1.0
+            walker.weight = global_weight
 
         return new_walkers
 
