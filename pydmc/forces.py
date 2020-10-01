@@ -123,7 +123,7 @@ class DMCForcesInput:
         data = h5py.File(fpath, "r")
 
         energy = np.mean(data["Local energy"][()][1:])
-        #weights = data["Weight"][()][1:]
+        weights = data["Weight"][()][1:]
 
         # Get Green's function derivatives
         sderiv_sum = data["grad_a S"][()][1:]        
@@ -217,5 +217,6 @@ class DMCForcesInput:
                force_pulay_vd.flatten(), \
                force_pulay_vd_warp.flatten(), \
                force_pulay_exact_nocutoff.flatten(), \
-               force_pulay_exact_warp_nocutoff.flatten()
+               force_pulay_exact_warp_nocutoff.flatten(), \
+               weights.flatten()
 
