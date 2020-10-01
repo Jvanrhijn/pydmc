@@ -1,5 +1,6 @@
 import numpy
 from collections import deque
+from pydmc.util import circularlist
 
 
 class Walker:

@@ -19,6 +19,7 @@ class DMC:
         self._hamiltonian = hamiltonian
 
         self._walkers = walkers
+        self._target_nwalkers = len(walkers)
 
         self._brancher = brancher
         self._ar = ar
@@ -108,8 +109,6 @@ class DMC:
 
             # perform ensemble averaging just after reconfiguration,
             # when all weights are unity
-            # TODO: somehow don't recompute local energies
-            #ensemble_energies = [self._hamiltonian(self._guiding_wf, w.configuration)/self._guiding_wf(w.configuration) for w in self._walkers]
             ensemble_energy = np.mean(ensemble_energies)
             block_energies[i] = ensemble_energy
             self._energy_all.append(ensemble_energy)

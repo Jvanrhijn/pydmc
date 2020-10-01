@@ -34,10 +34,41 @@ class SRBrancher(Brancher):
         return new_walkers
 
 
+class OptimalSRBrancher(Brancher):
+
+    def perform_branching(self, walkers):
+        weights = np.array([walker.weight for walker in walkers])
+        global_weight = np.mean(weights)
+        weights /= global_weight
+
+        positive_walkers = list(filter(lambda w: w.weight/global_weight > 1, walkers))
+        negative_walkers = list(filter(lambda w: w.weight/global_weight < 1, walkers))
+
+        num_reconf = int(sum(abs(w.weight / global_weight - 1) for w in positive_walkers) + np.random.uniform())
+
+        if num_reconf > 0:
+            to_duplicate = random.sample([i for i in range(len(positive_walkers))], num_reconf)
+            to_destroy = random.sample([i for i in range(len(negative_walkers))], num_reconf)
+
+            for i in sorted(to_destroy)[::-1]:
+                del negative_walkers[i]
+
+            for i in to_duplicate:
+                positive_walkers.append(copy.deepcopy(positive_walkers[i]))
+
+        new_walkers = negative_walkers + positive_walkers
+
+        for walker in new_walkers:
+            walker.weight = 1.0
+
+        return new_walkers
+
+
 class SimpleBrancher(Brancher):
 
     def perform_branching(self, walkers):
         extra_walkers = []
+
         for i, walker in enumerate(walkers):
             if walker.weight > 1:
                 num_copies = min(3, int(walker.weight + np.random.uniform()) - 1)
@@ -45,6 +76,7 @@ class SimpleBrancher(Brancher):
                     extra_walkers.append(copy.deepcopy(walker))
             else:
                 del walkers[i]
+
         return walkers + extra_walkers
 
 
