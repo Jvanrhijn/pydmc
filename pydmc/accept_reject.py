@@ -113,7 +113,8 @@ class DiffuseAcceptRejectDMC(AcceptReject):
 
         value_old = walker.value
         grad_old = walker.gradient
-        drift_old = velocity_cutoff_umrigar(grad_old / value_old, time_step)
+        #drift_old = velocity_cutoff_umrigar(grad_old / value_old, time_step)
+        drift_old = grad_old/value_old
 
         xprop = x + drift_old * time_step + self._rng.normal(size=x.shape, scale=math.sqrt(time_step))
 
@@ -127,7 +128,8 @@ class DiffuseAcceptRejectDMC(AcceptReject):
             return walker
 
         grad_new = wave_function.gradient(xprop)
-        drift_new = velocity_cutoff_umrigar(grad_new / value_new, time_step)
+        #drift_new = velocity_cutoff_umrigar(grad_new / value_new, time_step)
+        drift_new = grad_new / value_new
 
         # reject if node is crossed and we're doing FN-DMC
         if self._fixed_node and math.copysign(1, value_old) != math.copysign(1, value_new):

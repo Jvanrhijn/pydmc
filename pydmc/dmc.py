@@ -140,12 +140,12 @@ class DMC:
 
         # update walker weight and configuration
         v = walker.previous_gradient / walker.previous_value
-        s = (self._reference_energy - local_energy_old) #\
-            #* np.linalg.norm(self._velocity_cutoff(v, time_step))/np.linalg.norm(v)
+        s = (self._reference_energy - local_energy_old) \
+            * np.linalg.norm(self._velocity_cutoff(v, time_step))/np.linalg.norm(v)
 
         vprime = walker.gradient / walker.value
-        sprime = (self._reference_energy - local_energy_new) #\
-             #* np.linalg.norm(self._velocity_cutoff(vprime, time_step))/np.linalg.norm(vprime)
+        sprime = (self._reference_energy - local_energy_new) \
+             * np.linalg.norm(self._velocity_cutoff(vprime, time_step))/np.linalg.norm(vprime)
 
         walker.weight *= math.exp(0.5*(s + sprime)*time_step)
 
